@@ -21,13 +21,16 @@ def create_cov_matrix(i, j):
         return Symbol("P(" + str(i) + "," + str(j) + ")", real=True)
     else:
         return 0
-    
+
+def create_Tbs_matrix(i, j):
+    return Symbol("Tbs(" + str(i) + "," + str(j) + ")", real=True)
+
 def quat_mult(p,q):
     r = Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
                 p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
                 p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1],
                 p[0] * q[3] + p[1] * q[2] - p[2] * q[1] + p[3] * q[0]])
-    
+
     return r
 
 def create_symmetric_cov_matrix():
@@ -50,8 +53,6 @@ symbol_name_list = []
 dt = create_symbol("dt", real=True)  # dt
 g = create_symbol("g", real=True) # gravity constant
 
-r_mag = create_symbol("R_MAG", real=True)  # magnetometer measurement noise variance
-r_baro = create_symbol("R_baro", real=True)    # barometer noise variance
 r_hor_vel = create_symbol("R_hor_vel", real=True) # horizontal velocity noise variance
 r_ver_vel = create_symbol("R_vert_vel", real=True) # vertical velocity noise variance
 r_hor_pos = create_symbol("R_hor_pos", real=True) # horizontal position noise variance
@@ -84,7 +85,7 @@ d_v_z_var = create_symbol("dvzVar", real=True)
 var_u = Matrix.diag(d_ang_x_var, d_ang_y_var, d_ang_z_var, d_v_x_var, d_v_y_var, d_v_z_var)
 
 # define state vector
-    
+
 # attitude quaternion
 qw = create_symbol("q0", real=True)  # quaternion real part
 qx = create_symbol("q1", real=True)  # quaternion x component
@@ -95,18 +96,17 @@ q = Matrix([qw,qx,qy,qz])
 R_to_earth = quat2Rot(q)
 R_to_body = R_to_earth.T
 
-
 # velocity in NED local frame
-vx = create_symbol("vx", real=True)  # north velocity
-vy = create_symbol("vy", real=True)  # east velocity
-vz = create_symbol("vz", real=True)  # down velocity
+vx = create_symbol("vn", real=True)  # north velocity
+vy = create_symbol("ve", real=True)  # east velocity
+vz = create_symbol("vd", real=True)  # down velocity
 
 v = Matrix([vx,vy,vz])
 
 # position in NED local frame
-px = create_symbol("px", real=True)  # north position
-py = create_symbol("py", real=True)  # east position
-pz = create_symbol("pz", real=True)  # down position
+px = create_symbol("pn", real=True)  # north position
+py = create_symbol("pe", real=True)  # east position
+pz = create_symbol("pd", real=True)  # down position
 
 p = Matrix([px,py,pz])
 
@@ -117,7 +117,6 @@ d_ang_bz = create_symbol("daz_b", real=True)  # delta angle bias z
 
 d_ang_b = Matrix([d_ang_bx, d_ang_by, d_ang_bz])
 d_ang_true = d_ang - d_ang_b
-
 
 # delta velocity bias
 d_vel_bx = create_symbol("dvx_b", real=True)  # delta velocity bias x
@@ -143,8 +142,8 @@ ibz = create_symbol("ibz", real=True)  # earth magnetic field bias in body z
 ib = Matrix([ibx,iby,ibz])
 
 # wind in local NE frame
-wx = create_symbol("wx", real=True)  # wind in north direction
-wy = create_symbol("wy", real=True)  # wind in east direction
+wx = create_symbol("vwn", real=True)  # wind in north direction
+wy = create_symbol("vwe", real=True)  # wind in east direction
 
 w = Matrix([wx,wy])
 
@@ -194,8 +193,9 @@ cov_code_generator.write_matrix(Matrix(P_new_simple[1]), "nextP", True)
 cov_code_generator.close()
 
 # 3D magnetometer fusion
-m_mag = R_to_body * i + ib
+r_mag = create_symbol("R_MAG", real=True)  # magnetometer measurement noise variance
 
+m_mag = R_to_body * i + ib
 
 H_x_mag = Matrix([m_mag[0]]).jacobian(state)
 H_y_mag = Matrix([m_mag[1]]).jacobian(state)
@@ -205,7 +205,6 @@ K_x_mag = P * H_x_mag.T / (H_x_mag * P * H_x_mag.T + Matrix([r_mag]))
 K_y_mag = P * H_y_mag.T / (H_y_mag * P * H_y_mag.T + Matrix([r_mag]))
 K_z_mag = P * H_z_mag.T / (H_z_mag * P * H_z_mag.T + Matrix([r_mag]))
 
-
 mag_x_innov_var = H_x_mag * P * H_x_mag.T + Matrix([r_mag])
 mag_y_innov_var = H_y_mag * P * H_y_mag.T + Matrix([r_mag])
 mag_z_innov_var = H_z_mag * P * H_z_mag.T + Matrix([r_mag])
@@ -213,7 +212,6 @@ mag_z_innov_var = H_z_mag * P * H_z_mag.T + Matrix([r_mag])
 mag_x_innov_var_simple = cse(mag_x_innov_var, symbols("SX0:100"))
 mag_y_innov_var_simple = cse(mag_y_innov_var, symbols("SY0:100"))
 mag_z_innov_var_simple = cse(mag_z_innov_var, symbols("SZ0:100"))
-
 
 HK_x_simple = cse(Matrix([H_x_mag.transpose(), K_x_mag]), symbols("HKX0:200"))
 HK_y_simple = cse(Matrix([H_y_mag.transpose(), K_y_mag]), symbols("HKY0:200"))
@@ -254,54 +252,127 @@ mag_code_generator.write_matrix(Matrix(HK_z_simple[1][0][24:]), "Kfusion")
 
 mag_code_generator.close()
 
-# velocity fusion
-m_v = v
-H_v = m_v.jacobian(state)
-K_v_x = P * H_v[0,:].T / (H_v[0,:] * P * H_v[0,:].T + Matrix([r_hor_vel]))
-K_v_y = P * H_v[1,:].T / (H_v[1,:] * P * H_v[1,:].T + Matrix([r_hor_vel]))
-K_v_z = P * H_v[2,:].T / (H_v[2,:] * P * H_v[2,:].T + Matrix([r_ver_vel]))
+# airspeed fusion
+r_tas = create_symbol("R_TAS", real=True) # true airspeed measurement noise variance
 
-K_v_x_simple = cse(K_v_x, symbols('KSX0:200'))
-K_v_y_simple = cse(K_v_y, symbols('KSY0:200'))
-K_v_z_simple = cse(K_v_z, symbols('KSZ0:200'))
+tas = sqrt((vx-wx)*(vx-wx)+(vy-wy)*(vy-wy)+vz*vz)
+H_tas = Matrix([tas]).jacobian(state)
+K_tas = P * H_tas.T / (H_tas * P * H_tas.T + Matrix([r_tas]))
+tas_innov_var = H_tas * P * H_tas.T + Matrix([r_tas])
+tas_innov_var_simple = cse(tas_innov_var, symbols("S0:100"))
+HK_tas_simple = cse(Matrix([H_tas.transpose(), K_tas]), symbols("HK0:200"))
 
-vel_code_generator = CodeGenerator("velocity_generated.cpp")
-vel_code_generator.write_subexpressions(K_v_x_simple[0])
-vel_code_generator.write_matrix(Matrix(K_v_x_simple[1]), "Kvx")
+tas_code_generator = CodeGenerator("./tas_generated.cpp")
+tas_code_generator.print_string("Equations for TAS fusion")
 
-vel_code_generator.write_subexpressions(K_v_y_simple[0])
-vel_code_generator.write_matrix(Matrix(K_v_y_simple[1]), "Kvy")
+tas_code_generator.print_string("TAS innovation variance")
+tas_code_generator.write_subexpressions(tas_innov_var_simple[0])
+tas_code_generator.write_matrix(Matrix(tas_innov_var_simple[1]), "innov_var")
 
-vel_code_generator.write_subexpressions(K_v_z_simple[0])
-vel_code_generator.write_matrix(Matrix(K_v_z_simple[1]), "Kvz")
+tas_code_generator.print_string("TAS observation matrix and kalman gain")
+tas_code_generator.write_subexpressions(HK_tas_simple[0])
+tas_code_generator.write_matrix(Matrix(HK_tas_simple[1][0][0:24]), "H_TAS")
+tas_code_generator.write_matrix(Matrix(HK_tas_simple[1][0][24:]), "Kfusion")
 
-vel_code_generator.close()
+# sideslip fusion
+r_beta = create_symbol("R_BETA", real=True) # sideslip measurement noise variance
 
+v_rel_ef = Matrix([vx-wx,vy-wy,vz])
+v_rel_bf = R_to_body * v_rel_ef
+beta = v_rel_bf[1]/v_rel_bf[0]
+H_beta = Matrix([beta]).jacobian(state)
+K_beta = P * H_beta.T / (H_beta * P * H_beta.T + Matrix([r_beta]))
+beta_innov_var = H_beta * P * H_beta.T + Matrix([r_beta])
+beta_innov_var_simple = cse(beta_innov_var, symbols("S0:100"))
+HK_beta_simple = cse(Matrix([H_beta.transpose(), K_beta]), symbols("HK0:200"))
 
-# position fusion
-m_p = p
-H_p = m_p.jacobian(state)
+beta_code_generator = CodeGenerator("./beta_generated.cpp")
+beta_code_generator.print_string("Equations for sideslip fusion")
 
-K_p_x = P * H_p[0,:].T / (H_p[0,:] * P * H_p[0,:].T + Matrix([r_hor_pos]))
-K_p_y = P * H_p[1,:].T / (H_p[1,:] * P * H_p[1,:].T + Matrix([r_hor_pos]))
-K_p_z = P * H_p[2,:].T / (H_p[2,:] * P * H_p[2,:].T + Matrix([r_baro]))
+beta_code_generator.print_string("sideslip innovation variance")
+beta_code_generator.write_subexpressions(beta_innov_var_simple[0])
+beta_code_generator.write_matrix(Matrix(beta_innov_var_simple[1]), "innov_var")
 
-K_p_x_simple = cse(K_p_x, symbols('KSX0:200'))
-K_p_y_simple = cse(K_p_y, symbols('KSY0:200'))
-K_p_z_simple = cse(K_p_z, symbols('KSZ0:200'))
+beta_code_generator.print_string("sideslip observation matrix and kalman gain")
+beta_code_generator.write_subexpressions(HK_beta_simple[0])
+beta_code_generator.write_matrix(Matrix(HK_beta_simple[1][0][0:24]), "H_BETA")
+beta_code_generator.write_matrix(Matrix(HK_beta_simple[1][0][24:]), "Kfusion")
 
-pos_code_generator = CodeGenerator("./position_generated.cpp")
+# yaw fusion
+yaw_code_generator = CodeGenerator("./yaw_generated.cpp")
 
-pos_code_generator.write_subexpressions(K_p_x_simple[0])
-pos_code_generator.write_matrix(Matrix(K_p_x_simple[1]), "Kpx")
+# Derive observation Jacobian for fusion of 321 sequence yaw measurement
+# Calculate the yaw (first rotation) angle from the 321 rotation sequence
+# Provide alternative angle that avoids singularity at +-pi/2 yaw
+angMeasA = atan(R_to_earth[1,0]/R_to_earth[0,0])
+H_YAW321_A = Matrix([angMeasA]).jacobian(state)
+H_YAW321_A_simple = cse(H_YAW321_A, symbols('SA0:200'))
 
-pos_code_generator.write_subexpressions(K_p_y_simple[0])
-pos_code_generator.write_matrix(Matrix(K_p_y_simple[1]), "Kpy")
+angMeasB = pi/2 - atan(R_to_earth[0,0]/R_to_earth[1,0])
+H_YAW321_B = Matrix([angMeasB]).jacobian(state)
+H_YAW321_B_simple = cse(H_YAW321_B, symbols('SB0:200'))
 
-pos_code_generator.write_subexpressions(K_p_z_simple[0])
-pos_code_generator.write_matrix(Matrix(K_p_z_simple[1]), "Kpz")
+yaw_code_generator.print_string("calculate 321 yaw observation matrix - option A")
+yaw_code_generator.write_subexpressions(H_YAW321_A_simple[0])
+yaw_code_generator.write_matrix(Matrix(H_YAW321_A_simple[1]).T, "H_YAW")
 
-pos_code_generator.close()
+yaw_code_generator.print_string("calculate 321 yaw observation matrix - option B")
+yaw_code_generator.write_subexpressions(H_YAW321_B_simple[0])
+yaw_code_generator.write_matrix(Matrix(H_YAW321_B_simple[1]).T, "H_YAW")
 
+# Derive observation Jacobian for fusion of 312 sequence yaw measurement
+# Calculate the yaw (first rotation) angle from an Euler 312 sequence
+# Provide alternative angle that avoids singularity at +-pi/2 yaw
+angMeasA = atan(-R_to_earth[0,1]/R_to_earth[1,1])
+H_YAW312_A = Matrix([angMeasA]).jacobian(state)
+H_YAW312_A_simple = cse(H_YAW312_A, symbols('SA0:200'))
 
+angMeasB = pi/2 - atan(-R_to_earth[1,1]/R_to_earth[0,1])
+H_YAW312_B = Matrix([angMeasB]).jacobian(state)
+H_YAW312_B_simple = cse(H_YAW312_B, symbols('SB0:200'))
 
+yaw_code_generator.print_string("calculate 312 yaw observation matrix - option A")
+yaw_code_generator.write_subexpressions(H_YAW312_A_simple[0])
+yaw_code_generator.write_matrix(Matrix(H_YAW312_A_simple[1]).T, "H_YAW")
+
+yaw_code_generator.print_string("calculate 312 yaw observation matrix - option B")
+yaw_code_generator.write_subexpressions(H_YAW312_B_simple[0])
+yaw_code_generator.write_matrix(Matrix(H_YAW312_B_simple[1]).T, "H_YAW")
+
+# derive equations for sequential fusion of optical flow measurements
+flow_code_generator = CodeGenerator("./flow_generated.cpp")
+range = create_symbol("range", real=True) # range from camera focal point to ground along sensor Z axis
+obs_var = create_symbol("R_LOS", real=True) # optical flow line of sight rate measurement noise variance
+
+# Define rotation matrix from body to sensor frame
+Tbs = Matrix(3,3,create_Tbs_matrix)
+
+# Calculate earth relative velocity in a non-rotating sensor frame
+relVelSensor = Tbs * R_to_body * Matrix([vx,vy,vz])
+
+# Divide by range to get predicted angular LOS rates relative to X and Y
+# axes. Note these are rates in a non-rotating sensor frame
+losRateSensorX = +relVelSensor[1]/range
+losRateSensorY = -relVelSensor[0]/range
+
+# calculate the observation Jacobian and Kalman gains for the X axis
+H_LOSX = Matrix([losRateSensorX]).jacobian(state)
+flow_innov_var_X = H_LOSX * P * H_LOSX.T + Matrix([obs_var])
+K_LOSX = (P * H_LOSX.T) / flow_innov_var_X
+HK_flow_x_simple = cse(Matrix([H_LOSX.transpose(),K_LOSX]), symbols("SX0:1000"), optimizations='basic')
+
+flow_code_generator.print_string("X axis")
+flow_code_generator.write_subexpressions(HK_flow_x_simple[0])
+flow_code_generator.write_matrix(Matrix(HK_flow_x_simple[1][0][0:24]), "H_LOS")
+flow_code_generator.write_matrix(Matrix(HK_flow_x_simple[1][0][24:]), "Kfusion")
+
+# calculate the observation Jacobian and Kalman gains for the Y axis
+H_LOSY = Matrix([losRateSensorY]).jacobian(state)
+flow_innov_var_y = H_LOSY * P * H_LOSY.T + Matrix([obs_var])
+K_LOSY = (P * H_LOSY.T) / flow_innov_var_y
+HK_flow_y_simple = cse(Matrix([H_LOSY.transpose(),K_LOSY]), symbols("SY0:1000"), optimizations='basic')
+
+flow_code_generator.print_string("Y axis")
+flow_code_generator.write_subexpressions(HK_flow_y_simple[0])
+flow_code_generator.write_matrix(Matrix(HK_flow_y_simple[1][0][0:24]), "H_LOS")
+flow_code_generator.write_matrix(Matrix(HK_flow_y_simple[1][0][24:]), "Kfusion")
