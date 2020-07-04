@@ -19,11 +19,15 @@ def quat2Rot(q):
 def create_cov_matrix(i, j):
     if j >= i:
         return Symbol("P(" + str(i) + "," + str(j) + ")", real=True)
+        # legacy array format
+        # return Symbol("P[" + str(i) + "][" + str(j) + "]", real=True)
     else:
         return 0
 
 def create_Tbs_matrix(i, j):
     return Symbol("Tbs(" + str(i) + "," + str(j) + ")", real=True)
+    # legacy array format
+    # return Symbol("Tbs[" + str(i) + "][" + str(j) + "]", real=True)
 
 def quat_mult(p,q):
     r = Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
@@ -73,6 +77,30 @@ def generate_observation_vector_equations(P,state,observation,variance,n_obs):
 
     return HK_simple
 
+# write single observation equations to file
+def write_equations_to_file(equations,code_generator_id,n_obs):
+    if (n_obs < 1):
+        return
+
+    if (n_obs == 1):
+        code_generator_id.print_string("Sub Expressions")
+        code_generator_id.write_subexpressions(equations[0])
+        code_generator_id.print_string("Observation Jacobians")
+        code_generator_id.write_matrix(Matrix(equations[1][0][0:24]), "Hfusion")
+        code_generator_id.print_string("Kalman gains")
+        code_generator_id.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+    else:
+        code_generator_id.print_string("Sub Expressions")
+        code_generator_id.write_subexpressions(equations[0])
+        for axis_index in range(n_obs): 
+            start_index = axis_index*48
+            code_generator_id.print_string("Observation Jacobians - axis %i" % axis_index)
+            code_generator_id.write_matrix(Matrix(equations[1][0][start_index:start_index+24]), "Hfusion")
+            code_generator_id.print_string("Kalman gains - axis %i" % axis_index)
+            code_generator_id.write_matrix(Matrix(equations[1][0][start_index+24:start_index+48]), "Kfusion")
+
+    return
+
 # derive equations for sequential fusion of optical flow measurements
 def optical_flow_observation(P,state,R_to_body,vx,vy,vz):
     flow_code_generator = CodeGenerator("./flow_generated.cpp")
@@ -93,20 +121,23 @@ def optical_flow_observation(P,state,R_to_body,vx,vy,vz):
     # calculate the observation Jacobian and Kalman gains for the X axis
     equations = generate_observation_equations(P,state,losRateSensorX,obs_var)
 
-    flow_code_generator.print_string("X axis")
-    flow_code_generator.write_subexpressions(equations[0])
-    flow_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_LOS")
-    flow_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+    flow_code_generator.print_string("X Axis Equations")
+    write_equations_to_file(equations,flow_code_generator,1)
 
     # calculate the observation Jacobian and Kalman gains for the Y axis
     equations = generate_observation_equations(P,state,losRateSensorY,obs_var)
 
-    flow_code_generator.print_string("Y axis")
-    flow_code_generator.write_subexpressions(equations[0])
-    flow_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_LOS")
-    flow_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+    flow_code_generator.print_string("Y Axis Equations")
+    write_equations_to_file(equations,flow_code_generator,1)
 
     flow_code_generator.close()
+
+    # calculate a combined result for a possible reduction in operations, but will use more stack
+    observation = Matrix([relVelSensor[1]/range,-relVelSensor[0]/range])
+    equations = generate_observation_vector_equations(P,state,observation,obs_var,2)
+    flow_code_generator_alt = CodeGenerator("./flow_generated_alt.cpp")
+    write_equations_to_file(equations,flow_code_generator_alt,2)
+    flow_code_generator_alt.close()
 
     return
 
@@ -131,25 +162,14 @@ def body_frame_velocity_observation(P,state,R_to_body,vx,vy,vz):
 
     vel_bf_code_generator.close()
 
-    # calculate a combined result for a possible reduction in operations, but will use slightly more stack
+    # calculate a combined result for a possible reduction in operations, but will use more stack
     equations = generate_observation_vector_equations(P,state,vel_bf,obs_var,3)
 
     vel_bf_code_generator_alt = CodeGenerator("./vel_bf_generated_alt.cpp")
-    vel_bf_code_generator_alt.print_string("Sub Expressions")
-    vel_bf_code_generator_alt.write_subexpressions(equations[0])
-    vel_bf_code_generator_alt.print_string("X axis observation Jacobians and Kalman gains")
-    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][0:24]), "H_VEL")
-    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][24:48]), "Kfusion")
-    vel_bf_code_generator_alt.print_string("Y axis observation Jacobians and Kalman gains")
-    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][48:72]), "H_VEL")
-    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][72:96]), "Kfusion")
-    vel_bf_code_generator_alt.print_string("Z axis observation Jacobians and Kalman gains")
-    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][96:120]), "H_VEL")
-    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][120:144]), "Kfusion")
-
+    write_equations_to_file(equations,vel_bf_code_generator_alt,3)
     vel_bf_code_generator_alt.close()
 
-    # derive equations for fusion of dual antenna yaw measurement
+# derive equations for fusion of dual antenna yaw measurement
 def gps_yaw_observation(P,state,R_to_body):
     obs_var = create_symbol("R_YAW", real=True) # measurement noise variance
     ant_yaw = create_symbol("ant_yaw", real=True) # yaw angle of antenna array axis wrt X body axis
@@ -166,13 +186,7 @@ def gps_yaw_observation(P,state,R_to_body):
     equations = generate_observation_equations(P,state,observation,obs_var)
 
     gps_yaw_code_generator = CodeGenerator("./gps_yaw_generated.cpp")
-    gps_yaw_code_generator.print_string("Sub Expressions")
-    gps_yaw_code_generator.write_subexpressions(equations[0])
-    gps_yaw_code_generator.print_string("Observation Jacobians")
-    gps_yaw_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_YAW")
-    gps_yaw_code_generator.print_string("Kalman gains")
-    gps_yaw_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
-
+    write_equations_to_file(equations,gps_yaw_code_generator,1)
     gps_yaw_code_generator.close()
 
     return
@@ -188,13 +202,7 @@ def declination_observation(P,state,ix,iy):
     equations = generate_observation_equations(P,state,observation,obs_var)
 
     mag_decl_code_generator = CodeGenerator("./mag_decl_generated.cpp")
-    mag_decl_code_generator.print_string("Sub Expressions")
-    mag_decl_code_generator.write_subexpressions(equations[0])
-    mag_decl_code_generator.print_string("Observation Jacobians")
-    mag_decl_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_DECL")
-    mag_decl_code_generator.print_string("Kalman gains")
-    mag_decl_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
-
+    write_equations_to_file(equations,mag_decl_code_generator,1)
     mag_decl_code_generator.close()
 
     return
@@ -222,41 +230,22 @@ def body_frame_accel_observation(P,state,R_to_body,vx,vy,vz,wx,wy):
     # The nonlinear equation will be used to calculate the predicted measurement in implementation
     observation = Matrix([-Kaccx*vrel[0],-Kaccy*vrel[1]])
 
-    acc_bf_code_generator  = CodeGenerator("./acc_bf_code_generator.cpp")
+    acc_bf_code_generator  = CodeGenerator("./acc_bf_generated.cpp")
     H = observation.jacobian(state)
     K = zeros(24,2)
     axes = [0,1]
     for index in axes:
         equations = generate_observation_equations(P,state,observation[index],obs_var)
-
-        acc_bf_code_generator.print_string("Sub Expressions - axis %i" % index)
-        acc_bf_code_generator.write_subexpressions(equations[0])
-        acc_bf_code_generator.print_string("Observation Jacobians - axis %i" % index)
-        acc_bf_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_ACC")
-        acc_bf_code_generator.print_string("Kalman gains - axis %i" % index)
-        acc_bf_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+        acc_bf_code_generator.print_string("Axis %i equations" % index)
+        write_equations_to_file(equations,acc_bf_code_generator,1)
 
     acc_bf_code_generator.close()
 
-    # calculate a combined result for a possible reduction in operations, but will use slighlty more stack
+    # calculate a combined result for a possible reduction in operations, but will use more stack
     equations = generate_observation_vector_equations(P,state,observation,obs_var,2)
 
     acc_bf_code_generator_alt  = CodeGenerator("./acc_bf_generated_alt_.cpp")
-    acc_bf_code_generator_alt.print_string("Sub Expressions")
-    acc_bf_code_generator_alt.write_subexpressions(equations[0])
-
-    acc_bf_code_generator_alt.print_string("X axis observation Jacobians")
-    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][0:24]), "H_ACC")
-
-    acc_bf_code_generator_alt.print_string("X axis Kalman gains")
-    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][24:48]), "Kfusion")
-
-    acc_bf_code_generator_alt.print_string("Y axis observation Jacobians")
-    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][48:72]), "H_ACC")
-
-    acc_bf_code_generator_alt.print_string("Y axis Kalman gains")
-    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][72:96]), "Kfusion")
-
+    write_equations_to_file(equations,acc_bf_code_generator_alt,3)
     acc_bf_code_generator_alt.close()
 
     return
@@ -313,20 +302,23 @@ def mag_observation(P,state,R_to_body,i,ib):
 
     m_mag = R_to_body * i + ib
 
+    # calculate a separate set of equations for each axis
     mag_code_generator = CodeGenerator("./3Dmag_generated.cpp")
 
     axes = [0,1,2]
     for index in axes:
-        equations = generate_observation_equations(P,state,m_mag[0],obs_var)
-
-        mag_code_generator.print_string("Sub Expressions - axis %i" % index)
-        mag_code_generator.write_subexpressions(equations[0])
-        mag_code_generator.print_string("Observation Jacobians - axis %i" % index)
-        mag_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_TAS")
-        mag_code_generator.print_string("Kalman gains - axis %i" % index)
-        mag_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+        equations = generate_observation_equations(P,state,m_mag[index],obs_var)
+        mag_code_generator.print_string("Axis %i equations" % index)
+        write_equations_to_file(equations,mag_code_generator,1)
 
     mag_code_generator.close()
+
+    # calculate a combined set of equations for a possible reduction in operations, but will use slighlty more stack
+    equations = generate_observation_vector_equations(P,state,m_mag,obs_var,3)
+
+    mag_code_generator_alt  = CodeGenerator("./3Dmag_generated_alt.cpp")
+    write_equations_to_file(equations,mag_code_generator_alt,3)
+    mag_code_generator_alt.close()
 
     return
 
@@ -339,14 +331,7 @@ def tas_observation(P,state,vx,vy,vz,wx,wy):
     equations = generate_observation_equations(P,state,observation,obs_var)
 
     tas_code_generator = CodeGenerator("./tas_generated.cpp")
-
-    tas_code_generator.print_string("Sub Expressions")
-    tas_code_generator.write_subexpressions(equations[0])
-    tas_code_generator.print_string("Observation Jacobians")
-    tas_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_TAS")
-    tas_code_generator.print_string("Kalman gains")
-    tas_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
-
+    write_equations_to_file(equations,tas_code_generator,1)
     tas_code_generator.close()
 
     return
@@ -362,14 +347,7 @@ def beta_observation(P,state,R_to_body,vx,vy,vz,wx,wy):
     equations = generate_observation_equations(P,state,observation,obs_var)
 
     beta_code_generator = CodeGenerator("./beta_generated.cpp")
-
-    beta_code_generator.print_string("Sub Expressions")
-    beta_code_generator.write_subexpressions(equations[0])
-    beta_code_generator.print_string("Observation Jacobians")
-    beta_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_BETA")
-    beta_code_generator.print_string("Kalman gains")
-    beta_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
-
+    write_equations_to_file(equations,beta_code_generator,1)
     beta_code_generator.close()
 
     return

@@ -1,99 +1,99 @@
 // Sub Expressions
-float HK0 = vn - vwn;
-float HK1 = ve - vwe;
-float HK2 = HK0*q0 + HK1*q3 - q2*vd;
-float HK3 = 2*Kaccx;
-float HK4 = HK0*q1 + HK1*q2 + q3*vd;
-float HK5 = HK0*q2 - HK1*q1 + q0*vd;
-float HK6 = -HK0*q3 + HK1*q0 + q1*vd;
-float HK7 = powf(q1, 2);
-float HK8 = powf(q2, 2);
-float HK9 = powf(q0, 2) - powf(q3, 2);
-float HK10 = HK7 - HK8 + HK9;
-float HK11 = HK10*Kaccx;
-float HK12 = q0*q3;
-float HK13 = q1*q2;
-float HK14 = HK12 + HK13;
-float HK15 = HK14*HK3;
-float HK16 = q0*q2 - q1*q3;
-float HK17 = 2*HK14;
-float HK18 = 2*HK16;
-float HK19 = 2*HK4;
-float HK20 = 2*HK2;
-float HK21 = 2*HK5;
-float HK22 = 2*HK6;
-float HK23 = HK22*P(0,3);
-float HK24 = -HK10*P(0,22) + HK10*P(0,4) - HK17*P(0,23) + HK17*P(0,5) - HK18*P(0,6) + HK19*P(0,1) + HK20*P(0,0) - HK21*P(0,2) + HK23;
-float HK25 = HK17*P(5,23);
-float HK26 = -HK10*P(22,23) + HK10*P(4,23) - HK17*P(23,23) - HK18*P(6,23) + HK19*P(1,23) + HK20*P(0,23) - HK21*P(2,23) + HK22*P(3,23) + HK25;
-float HK27 = powf(Kaccx, 2);
-float HK28 = HK17*HK27;
-float HK29 = HK10*P(4,5) - HK10*P(5,22) + HK17*P(5,5) - HK18*P(5,6) + HK19*P(1,5) + HK20*P(0,5) - HK21*P(2,5) + HK22*P(3,5) - HK25;
-float HK30 = HK10*P(4,6) - HK10*P(6,22) + HK17*P(5,6) - HK17*P(6,23) - HK18*P(6,6) + HK19*P(1,6) + HK20*P(0,6) - HK21*P(2,6) + HK22*P(3,6);
-float HK31 = HK10*P(4,22);
-float HK32 = HK10*P(4,4) - HK17*P(4,23) + HK17*P(4,5) - HK18*P(4,6) + HK19*P(1,4) + HK20*P(0,4) - HK21*P(2,4) + HK22*P(3,4) - HK31;
-float HK33 = HK10*HK27;
-float HK34 = -HK10*P(22,22) - HK17*P(22,23) + HK17*P(5,22) - HK18*P(6,22) + HK19*P(1,22) + HK20*P(0,22) - HK21*P(2,22) + HK22*P(3,22) + HK31;
-float HK35 = HK21*P(1,2);
-float HK36 = -HK10*P(1,22) + HK10*P(1,4) - HK17*P(1,23) + HK17*P(1,5) - HK18*P(1,6) + HK19*P(1,1) + HK20*P(0,1) + HK22*P(1,3) - HK35;
-float HK37 = HK19*P(1,2);
-float HK38 = -HK10*P(2,22) + HK10*P(2,4) - HK17*P(2,23) + HK17*P(2,5) - HK18*P(2,6) + HK20*P(0,2) - HK21*P(2,2) + HK22*P(2,3) + HK37;
-float HK39 = HK20*P(0,3);
-float HK40 = -HK10*P(3,22) + HK10*P(3,4) - HK17*P(3,23) + HK17*P(3,5) - HK18*P(3,6) + HK19*P(1,3) - HK21*P(2,3) + HK22*P(3,3) + HK39;
-float HK41 = Kaccx/(-HK18*HK27*HK30 + HK19*HK27*HK36 + HK20*HK24*HK27 - HK21*HK27*HK38 + HK22*HK27*HK40 - HK26*HK28 + HK28*HK29 + HK32*HK33 - HK33*HK34 + R_ACC);
-float HK42 = HK12 - HK13;
-float HK43 = 2*Kaccy;
-float HK44 = HK42*HK43;
-float HK45 = -HK7 + HK8 + HK9;
-float HK46 = HK45*Kaccy;
-float HK47 = q0*q1 + q2*q3;
-float HK48 = 2*HK47;
-float HK49 = 2*HK42;
-float HK50 = HK19*P(0,2) + HK21*P(0,1) + HK22*P(0,0) - HK39 - HK45*P(0,23) + HK45*P(0,5) + HK48*P(0,6) + HK49*P(0,22) - HK49*P(0,4);
-float HK51 = powf(Kaccy, 2);
-float HK52 = HK19*P(2,6) - HK20*P(3,6) + HK21*P(1,6) + HK22*P(0,6) + HK45*P(5,6) - HK45*P(6,23) + HK48*P(6,6) - HK49*P(4,6) + HK49*P(6,22);
-float HK53 = HK49*P(4,22);
-float HK54 = HK19*P(2,22) - HK20*P(3,22) + HK21*P(1,22) + HK22*P(0,22) - HK45*P(22,23) + HK45*P(5,22) + HK48*P(6,22) + HK49*P(22,22) - HK53;
-float HK55 = HK49*HK51;
-float HK56 = HK19*P(2,4) - HK20*P(3,4) + HK21*P(1,4) + HK22*P(0,4) - HK45*P(4,23) + HK45*P(4,5) + HK48*P(4,6) - HK49*P(4,4) + HK53;
-float HK57 = HK45*P(5,23);
-float HK58 = HK19*P(2,5) - HK20*P(3,5) + HK21*P(1,5) + HK22*P(0,5) + HK45*P(5,5) + HK48*P(5,6) - HK49*P(4,5) + HK49*P(5,22) - HK57;
-float HK59 = HK45*HK51;
-float HK60 = HK19*P(2,23) - HK20*P(3,23) + HK21*P(1,23) + HK22*P(0,23) - HK45*P(23,23) + HK48*P(6,23) + HK49*P(22,23) - HK49*P(4,23) + HK57;
-float HK61 = HK19*P(2,2) - HK20*P(2,3) + HK22*P(0,2) + HK35 - HK45*P(2,23) + HK45*P(2,5) + HK48*P(2,6) + HK49*P(2,22) - HK49*P(2,4);
-float HK62 = -HK20*P(1,3) + HK21*P(1,1) + HK22*P(0,1) + HK37 - HK45*P(1,23) + HK45*P(1,5) + HK48*P(1,6) + HK49*P(1,22) - HK49*P(1,4);
-float HK63 = HK19*P(2,3) - HK20*P(3,3) + HK21*P(1,3) + HK23 - HK45*P(3,23) + HK45*P(3,5) + HK48*P(3,6) + HK49*P(3,22) - HK49*P(3,4);
-float HK64 = Kaccy/(HK19*HK51*HK61 - HK20*HK51*HK63 + HK21*HK51*HK62 + HK22*HK50*HK51 + HK48*HK51*HK52 + HK54*HK55 - HK55*HK56 + HK58*HK59 - HK59*HK60 + R_ACC);
+const float HK0 = vn - vwn;
+const float HK1 = ve - vwe;
+const float HK2 = HK0*q0 + HK1*q3 - q2*vd;
+const float HK3 = 2*Kaccx;
+const float HK4 = HK0*q1 + HK1*q2 + q3*vd;
+const float HK5 = HK0*q2 - HK1*q1 + q0*vd;
+const float HK6 = -HK0*q3 + HK1*q0 + q1*vd;
+const float HK7 = powf(q1, 2);
+const float HK8 = powf(q2, 2);
+const float HK9 = powf(q0, 2) - powf(q3, 2);
+const float HK10 = HK7 - HK8 + HK9;
+const float HK11 = HK10*Kaccx;
+const float HK12 = q0*q3;
+const float HK13 = q1*q2;
+const float HK14 = HK12 + HK13;
+const float HK15 = HK14*HK3;
+const float HK16 = q0*q2 - q1*q3;
+const float HK17 = 2*HK14;
+const float HK18 = 2*HK16;
+const float HK19 = 2*HK4;
+const float HK20 = 2*HK2;
+const float HK21 = 2*HK5;
+const float HK22 = 2*HK6;
+const float HK23 = HK22*P(0,3);
+const float HK24 = -HK10*P(0,22) + HK10*P(0,4) - HK17*P(0,23) + HK17*P(0,5) - HK18*P(0,6) + HK19*P(0,1) + HK20*P(0,0) - HK21*P(0,2) + HK23;
+const float HK25 = HK17*P(5,23);
+const float HK26 = -HK10*P(22,23) + HK10*P(4,23) - HK17*P(23,23) - HK18*P(6,23) + HK19*P(1,23) + HK20*P(0,23) - HK21*P(2,23) + HK22*P(3,23) + HK25;
+const float HK27 = powf(Kaccx, 2);
+const float HK28 = HK17*HK27;
+const float HK29 = HK10*P(4,5) - HK10*P(5,22) + HK17*P(5,5) - HK18*P(5,6) + HK19*P(1,5) + HK20*P(0,5) - HK21*P(2,5) + HK22*P(3,5) - HK25;
+const float HK30 = HK10*P(4,6) - HK10*P(6,22) + HK17*P(5,6) - HK17*P(6,23) - HK18*P(6,6) + HK19*P(1,6) + HK20*P(0,6) - HK21*P(2,6) + HK22*P(3,6);
+const float HK31 = HK10*P(4,22);
+const float HK32 = HK10*P(4,4) - HK17*P(4,23) + HK17*P(4,5) - HK18*P(4,6) + HK19*P(1,4) + HK20*P(0,4) - HK21*P(2,4) + HK22*P(3,4) - HK31;
+const float HK33 = HK10*HK27;
+const float HK34 = -HK10*P(22,22) - HK17*P(22,23) + HK17*P(5,22) - HK18*P(6,22) + HK19*P(1,22) + HK20*P(0,22) - HK21*P(2,22) + HK22*P(3,22) + HK31;
+const float HK35 = HK21*P(1,2);
+const float HK36 = -HK10*P(1,22) + HK10*P(1,4) - HK17*P(1,23) + HK17*P(1,5) - HK18*P(1,6) + HK19*P(1,1) + HK20*P(0,1) + HK22*P(1,3) - HK35;
+const float HK37 = HK19*P(1,2);
+const float HK38 = -HK10*P(2,22) + HK10*P(2,4) - HK17*P(2,23) + HK17*P(2,5) - HK18*P(2,6) + HK20*P(0,2) - HK21*P(2,2) + HK22*P(2,3) + HK37;
+const float HK39 = HK20*P(0,3);
+const float HK40 = -HK10*P(3,22) + HK10*P(3,4) - HK17*P(3,23) + HK17*P(3,5) - HK18*P(3,6) + HK19*P(1,3) - HK21*P(2,3) + HK22*P(3,3) + HK39;
+const float HK41 = Kaccx/(-HK18*HK27*HK30 + HK19*HK27*HK36 + HK20*HK24*HK27 - HK21*HK27*HK38 + HK22*HK27*HK40 - HK26*HK28 + HK28*HK29 + HK32*HK33 - HK33*HK34 + R_ACC);
+const float HK42 = HK12 - HK13;
+const float HK43 = 2*Kaccy;
+const float HK44 = HK42*HK43;
+const float HK45 = -HK7 + HK8 + HK9;
+const float HK46 = HK45*Kaccy;
+const float HK47 = q0*q1 + q2*q3;
+const float HK48 = 2*HK47;
+const float HK49 = 2*HK42;
+const float HK50 = HK19*P(0,2) + HK21*P(0,1) + HK22*P(0,0) - HK39 - HK45*P(0,23) + HK45*P(0,5) + HK48*P(0,6) + HK49*P(0,22) - HK49*P(0,4);
+const float HK51 = powf(Kaccy, 2);
+const float HK52 = HK19*P(2,6) - HK20*P(3,6) + HK21*P(1,6) + HK22*P(0,6) + HK45*P(5,6) - HK45*P(6,23) + HK48*P(6,6) - HK49*P(4,6) + HK49*P(6,22);
+const float HK53 = HK49*P(4,22);
+const float HK54 = HK19*P(2,22) - HK20*P(3,22) + HK21*P(1,22) + HK22*P(0,22) - HK45*P(22,23) + HK45*P(5,22) + HK48*P(6,22) + HK49*P(22,22) - HK53;
+const float HK55 = HK49*HK51;
+const float HK56 = HK19*P(2,4) - HK20*P(3,4) + HK21*P(1,4) + HK22*P(0,4) - HK45*P(4,23) + HK45*P(4,5) + HK48*P(4,6) - HK49*P(4,4) + HK53;
+const float HK57 = HK45*P(5,23);
+const float HK58 = HK19*P(2,5) - HK20*P(3,5) + HK21*P(1,5) + HK22*P(0,5) + HK45*P(5,5) + HK48*P(5,6) - HK49*P(4,5) + HK49*P(5,22) - HK57;
+const float HK59 = HK45*HK51;
+const float HK60 = HK19*P(2,23) - HK20*P(3,23) + HK21*P(1,23) + HK22*P(0,23) - HK45*P(23,23) + HK48*P(6,23) + HK49*P(22,23) - HK49*P(4,23) + HK57;
+const float HK61 = HK19*P(2,2) - HK20*P(2,3) + HK22*P(0,2) + HK35 - HK45*P(2,23) + HK45*P(2,5) + HK48*P(2,6) + HK49*P(2,22) - HK49*P(2,4);
+const float HK62 = -HK20*P(1,3) + HK21*P(1,1) + HK22*P(0,1) + HK37 - HK45*P(1,23) + HK45*P(1,5) + HK48*P(1,6) + HK49*P(1,22) - HK49*P(1,4);
+const float HK63 = HK19*P(2,3) - HK20*P(3,3) + HK21*P(1,3) + HK23 - HK45*P(3,23) + HK45*P(3,5) + HK48*P(3,6) + HK49*P(3,22) - HK49*P(3,4);
+const float HK64 = Kaccy/(HK19*HK51*HK61 - HK20*HK51*HK63 + HK21*HK51*HK62 + HK22*HK50*HK51 + HK48*HK51*HK52 + HK54*HK55 - HK55*HK56 + HK58*HK59 - HK59*HK60 + R_ACC);
 
 
-// X axis observation Jacobians
-H_ACC(0) = -HK2*HK3;
-H_ACC(1) = -HK3*HK4;
-H_ACC(2) = HK3*HK5;
-H_ACC(3) = -HK3*HK6;
-H_ACC(4) = -HK11;
-H_ACC(5) = -HK15;
-H_ACC(6) = HK16*HK3;
-H_ACC(7) = 0;
-H_ACC(8) = 0;
-H_ACC(9) = 0;
-H_ACC(10) = 0;
-H_ACC(11) = 0;
-H_ACC(12) = 0;
-H_ACC(13) = 0;
-H_ACC(14) = 0;
-H_ACC(15) = 0;
-H_ACC(16) = 0;
-H_ACC(17) = 0;
-H_ACC(18) = 0;
-H_ACC(19) = 0;
-H_ACC(20) = 0;
-H_ACC(21) = 0;
-H_ACC(22) = HK11;
-H_ACC(23) = HK15;
+// Observation Jacobians - axis 0
+Hfusion(0) = -HK2*HK3;
+Hfusion(1) = -HK3*HK4;
+Hfusion(2) = HK3*HK5;
+Hfusion(3) = -HK3*HK6;
+Hfusion(4) = -HK11;
+Hfusion(5) = -HK15;
+Hfusion(6) = HK16*HK3;
+Hfusion(7) = 0;
+Hfusion(8) = 0;
+Hfusion(9) = 0;
+Hfusion(10) = 0;
+Hfusion(11) = 0;
+Hfusion(12) = 0;
+Hfusion(13) = 0;
+Hfusion(14) = 0;
+Hfusion(15) = 0;
+Hfusion(16) = 0;
+Hfusion(17) = 0;
+Hfusion(18) = 0;
+Hfusion(19) = 0;
+Hfusion(20) = 0;
+Hfusion(21) = 0;
+Hfusion(22) = HK11;
+Hfusion(23) = HK15;
 
 
-// X axis Kalman gains
+// Kalman gains - axis 0
 Kfusion(0) = -HK24*HK41;
 Kfusion(1) = -HK36*HK41;
 Kfusion(2) = -HK38*HK41;
@@ -120,34 +120,34 @@ Kfusion(22) = -HK34*HK41;
 Kfusion(23) = -HK26*HK41;
 
 
-// Y axis observation Jacobians
-H_ACC(0) = -HK22*Kaccy;
-H_ACC(1) = -HK21*Kaccy;
-H_ACC(2) = -HK19*Kaccy;
-H_ACC(3) = HK20*Kaccy;
-H_ACC(4) = HK44;
-H_ACC(5) = -HK46;
-H_ACC(6) = -HK43*HK47;
-H_ACC(7) = 0;
-H_ACC(8) = 0;
-H_ACC(9) = 0;
-H_ACC(10) = 0;
-H_ACC(11) = 0;
-H_ACC(12) = 0;
-H_ACC(13) = 0;
-H_ACC(14) = 0;
-H_ACC(15) = 0;
-H_ACC(16) = 0;
-H_ACC(17) = 0;
-H_ACC(18) = 0;
-H_ACC(19) = 0;
-H_ACC(20) = 0;
-H_ACC(21) = 0;
-H_ACC(22) = -HK44;
-H_ACC(23) = HK46;
+// Observation Jacobians - axis 1
+Hfusion(0) = -HK22*Kaccy;
+Hfusion(1) = -HK21*Kaccy;
+Hfusion(2) = -HK19*Kaccy;
+Hfusion(3) = HK20*Kaccy;
+Hfusion(4) = HK44;
+Hfusion(5) = -HK46;
+Hfusion(6) = -HK43*HK47;
+Hfusion(7) = 0;
+Hfusion(8) = 0;
+Hfusion(9) = 0;
+Hfusion(10) = 0;
+Hfusion(11) = 0;
+Hfusion(12) = 0;
+Hfusion(13) = 0;
+Hfusion(14) = 0;
+Hfusion(15) = 0;
+Hfusion(16) = 0;
+Hfusion(17) = 0;
+Hfusion(18) = 0;
+Hfusion(19) = 0;
+Hfusion(20) = 0;
+Hfusion(21) = 0;
+Hfusion(22) = -HK44;
+Hfusion(23) = HK46;
 
 
-// Y axis Kalman gains
+// Kalman gains - axis 1
 Kfusion(0) = -HK50*HK64;
 Kfusion(1) = -HK62*HK64;
 Kfusion(2) = -HK61*HK64;
@@ -172,5 +172,11 @@ Kfusion(20) = -HK64*(HK19*P(2,20) - HK20*P(3,20) + HK21*P(1,20) + HK22*P(0,20) -
 Kfusion(21) = -HK64*(HK19*P(2,21) - HK20*P(3,21) + HK21*P(1,21) + HK22*P(0,21) - HK45*P(21,23) + HK45*P(5,21) + HK48*P(6,21) + HK49*P(21,22) - HK49*P(4,21));
 Kfusion(22) = -HK54*HK64;
 Kfusion(23) = -HK60*HK64;
+
+
+// Observation Jacobians - axis 2
+
+
+// Kalman gains - axis 2
 
 

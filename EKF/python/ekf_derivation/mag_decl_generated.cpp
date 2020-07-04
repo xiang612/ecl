@@ -1,41 +1,41 @@
 // Sub Expressions
-float HK0 = powf(magN, -2);
-float HK1 = HK0*powf(magE, 2) + 1;
-float HK2 = 1.0F/HK1;
-float HK3 = 1.0F/magN;
-float HK4 = HK2*HK3;
-float HK5 = HK3*magE;
-float HK6 = HK5*P(16,17) - P(17,17);
-float HK7 = powf(HK1, -2);
-float HK8 = HK5*P(16,16) - P(16,17);
-float HK9 = HK4/(-HK0*HK6*HK7 + HK7*HK8*magE/powf(magN, 3) + R_DECL);
+const float HK0 = powf(magN, -2);
+const float HK1 = HK0*powf(magE, 2) + 1;
+const float HK2 = 1.0F/HK1;
+const float HK3 = 1.0F/magN;
+const float HK4 = HK2*HK3;
+const float HK5 = HK3*magE;
+const float HK6 = HK5*P(16,17) - P(17,17);
+const float HK7 = powf(HK1, -2);
+const float HK8 = HK5*P(16,16) - P(16,17);
+const float HK9 = HK4/(-HK0*HK6*HK7 + HK7*HK8*magE/powf(magN, 3) + R_DECL);
 
 
 // Observation Jacobians
-H_DECL(0) = 0;
-H_DECL(1) = 0;
-H_DECL(2) = 0;
-H_DECL(3) = 0;
-H_DECL(4) = 0;
-H_DECL(5) = 0;
-H_DECL(6) = 0;
-H_DECL(7) = 0;
-H_DECL(8) = 0;
-H_DECL(9) = 0;
-H_DECL(10) = 0;
-H_DECL(11) = 0;
-H_DECL(12) = 0;
-H_DECL(13) = 0;
-H_DECL(14) = 0;
-H_DECL(15) = 0;
-H_DECL(16) = -HK0*HK2*magE;
-H_DECL(17) = HK4;
-H_DECL(18) = 0;
-H_DECL(19) = 0;
-H_DECL(20) = 0;
-H_DECL(21) = 0;
-H_DECL(22) = 0;
-H_DECL(23) = 0;
+Hfusion(0) = 0;
+Hfusion(1) = 0;
+Hfusion(2) = 0;
+Hfusion(3) = 0;
+Hfusion(4) = 0;
+Hfusion(5) = 0;
+Hfusion(6) = 0;
+Hfusion(7) = 0;
+Hfusion(8) = 0;
+Hfusion(9) = 0;
+Hfusion(10) = 0;
+Hfusion(11) = 0;
+Hfusion(12) = 0;
+Hfusion(13) = 0;
+Hfusion(14) = 0;
+Hfusion(15) = 0;
+Hfusion(16) = -HK0*HK2*magE;
+Hfusion(17) = HK4;
+Hfusion(18) = 0;
+Hfusion(19) = 0;
+Hfusion(20) = 0;
+Hfusion(21) = 0;
+Hfusion(22) = 0;
+Hfusion(23) = 0;
 
 
 // Kalman gains
