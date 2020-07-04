@@ -48,6 +48,305 @@ def create_symbol(name, real=True):
     symbol_name_list.append(name)
     return Symbol(name, real=True)
 
+# generate equations for observation Jacobian and Kalman gain
+def generate_observation_equations(P,state,observation,variance):
+    H = Matrix([observation]).jacobian(state)
+    innov_var = H * P * H.T + Matrix([variance])
+    K = P * H.T / innov_var
+    HK_simple = cse(Matrix([H.transpose(), K]), symbols("HK0:200"), optimizations='basic')
+
+    return HK_simple
+
+# derive equations for sequential fusion of optical flow measurements
+def optical_flow_observation(P,state,R_to_body,vx,vy,vz):
+    flow_code_generator = CodeGenerator("./flow_generated.cpp")
+    range = create_symbol("range", real=True) # range from camera focal point to ground along sensor Z axis
+    obs_var = create_symbol("R_LOS", real=True) # optical flow line of sight rate measurement noise variance
+
+    # Define rotation matrix from body to sensor frame
+    Tbs = Matrix(3,3,create_Tbs_matrix)
+
+    # Calculate earth relative velocity in a non-rotating sensor frame
+    relVelSensor = Tbs * R_to_body * Matrix([vx,vy,vz])
+
+    # Divide by range to get predicted angular LOS rates relative to X and Y
+    # axes. Note these are rates in a non-rotating sensor frame
+    losRateSensorX = +relVelSensor[1]/range
+    losRateSensorY = -relVelSensor[0]/range
+
+    # calculate the observation Jacobian and Kalman gains for the X axis
+    equations = generate_observation_equations(P,state,losRateSensorX,obs_var)
+
+    flow_code_generator.print_string("X axis")
+    flow_code_generator.write_subexpressions(equations[0])
+    flow_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_LOS")
+    flow_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    # calculate the observation Jacobian and Kalman gains for the Y axis
+    equations = generate_observation_equations(P,state,losRateSensorY,obs_var)
+
+    flow_code_generator.print_string("Y axis")
+    flow_code_generator.write_subexpressions(equations[0])
+    flow_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_LOS")
+    flow_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    flow_code_generator.close()
+
+    return
+
+# Derive equations for sequential fusion of body frame velocity measurements
+def body_fame_velocity_observation(P,state,R_to_body,vx,vy,vz):
+    obs_var = create_symbol("R_VEL", real=True) # measurement noise variance
+
+    # Calculate earth relative velocity in a non-rotating sensor frame
+    vel_bf = R_to_body * Matrix([vx,vy,vz])
+
+    vel_bf_code_generator = CodeGenerator("./vel_bf_generated.cpp")
+    axes = [0,1,2]
+    H_obs = vel_bf.jacobian(state) # observation Jacobians
+    K_gain = zeros(24,3)
+    for index in axes:
+        equations = generate_observation_equations(P,state,vel_bf[index],obs_var)
+
+        vel_bf_code_generator.print_string("axis %i" % index)
+        vel_bf_code_generator.write_subexpressions(equations[0])
+        vel_bf_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_VEL")
+        vel_bf_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    vel_bf_code_generator.close()
+
+    # calculate a combined result for a small reduction in operations, but will use more stack
+    vel_bf_code_generator_alt = CodeGenerator("./vel_bf_generated_alt.cpp")
+    HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1],H_obs[2,:].transpose(),K_gain[:,2]]), symbols("S0:1000"), optimizations='basic')
+    vel_bf_code_generator_alt.print_string("Sub Expressions")
+    vel_bf_code_generator_alt.write_subexpressions(HK_simple[0])
+    vel_bf_code_generator_alt.print_string("X axis observation Jacobians and Kalman gains")
+    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
+    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
+    vel_bf_code_generator_alt.print_string("Y axis observation Jacobians and Kalman gains")
+    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
+    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
+    vel_bf_code_generator_alt.print_string("Z axis observation Jacobians and Kalman gains")
+    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][96:120]), "H_VEL")
+    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][120:144]), "Kfusion")
+
+    vel_bf_code_generator_alt.close()
+
+    # derive equations for fusion of dual antenna yaw measurement
+def gps_yaw_observation(P,state,R_to_body):
+    obs_var = create_symbol("R_YAW", real=True) # measurement noise variance
+    ant_yaw = create_symbol("ant_yaw", real=True) # yaw angle of antenna array axis wrt X body axis
+
+    # define antenna vector in body frame
+    ant_vec_bf = Matrix([cos(ant_yaw),sin(ant_yaw),0])
+
+    # rotate into earth frame
+    ant_vec_ef = R_to_body.T * ant_vec_bf
+
+    # Calculate the yaw angle from the projection
+    observation = atan(ant_vec_ef[1]/ant_vec_ef[0])
+
+    equations = generate_observation_equations(P,state,observation,obs_var)
+
+    gps_yaw_code_generator = CodeGenerator("./gps_yaw_generated.cpp")
+    gps_yaw_code_generator.print_string("Sub Expressions")
+    gps_yaw_code_generator.write_subexpressions(equations[0])
+    gps_yaw_code_generator.print_string("Observation Jacobians")
+    gps_yaw_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_YAW")
+    gps_yaw_code_generator.print_string("Kalman gains")
+    gps_yaw_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    gps_yaw_code_generator.close()
+
+    return
+
+# derive equations for fusion of declination
+def declination_observation(P,state,ix,iy):
+    obs_var = create_symbol("R_DECL", real=True) # measurement noise variance
+
+    # the predicted measurement is the angle wrt magnetic north of the horizontal
+    # component of the measured field
+    observation = atan(iy/ix)
+
+    equations = generate_observation_equations(P,state,observation,obs_var)
+
+    mag_decl_code_generator = CodeGenerator("./mag_decl_generated.cpp")
+    mag_decl_code_generator.print_string("Sub Expressions")
+    mag_decl_code_generator.write_subexpressions(equations[0])
+    mag_decl_code_generator.print_string("Observation Jacobians")
+    mag_decl_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_DECL")
+    mag_decl_code_generator.print_string("Kalman gains")
+    mag_decl_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    mag_decl_code_generator.close()
+
+    return
+
+# derive equations for fusion of lateral body acceleration (multirotors only)
+def body_frame_accel_observation(P,state,R_to_body,vx,vy,vz,wx,wy):
+    obs_var = create_symbol("R_ACC", real=True) # measurement noise variance
+    Kaccx = create_symbol("Kaccx", real=True) # measurement noise variance
+    Kaccy = create_symbol("Kaccy", real=True) # measurement noise variance
+
+    # use relationship between airspeed along the X and Y body axis and the
+    # drag to predict the lateral acceleration for a multirotor vehicle type
+    # where propulsion forces are generated primarily along the Z body axis
+
+    vrel = R_to_body*Matrix([vx-wx,vy-wy,vz]) # predicted wind relative velocity
+
+    # Use this nonlinear model for the prediction in the implementation only
+    # It uses a ballistic coefficient for each axis
+    # accXpred = -0.5*rho*vrel[0]*vrel[0]*BCXinv # predicted acceleration measured along X body axis
+    # accYpred = -0.5*rho*vrel[1]*vrel[1]*BCYinv # predicted acceleration measured along Y body axis
+
+    # Use a simple viscous drag model for the linear estimator equations
+    # Use the the derivative from speed to acceleration averaged across the
+    # speed range. This avoids the generation of a dirac function in the derivation
+    # The nonlinear equation will be used to calculate the predicted measurement in implementation
+    observation = Matrix([-Kaccx*vrel[0],-Kaccy*vrel[1]])
+
+    axes = [0,1]
+    H_obs = observation.jacobian(state)
+    K_gain = zeros(24,2)
+    for index in axes:
+        innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
+        K_gain[:,index] = (P * H_obs[index,:].T) / innov_var
+
+    # calculate a combined result for efficiency
+    acc_bf_code_generator = CodeGenerator("./acc_bf_generated.cpp")
+    HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1]]), symbols("S0:1000"), optimizations='basic')
+    acc_bf_code_generator.print_string("Sub Expressions")
+    acc_bf_code_generator.write_subexpressions(HK_simple[0])
+
+    acc_bf_code_generator.print_string("X axis observation Jacobians")
+    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
+
+    acc_bf_code_generator.print_string("X axis Kalman gains")
+    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
+
+    acc_bf_code_generator.print_string("Y axis observation Jacobians")
+    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
+
+    acc_bf_code_generator.print_string("XY axis Kalman gains")
+    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
+
+    acc_bf_code_generator.close()
+
+    return
+
+# yaw fusion
+def yaw_observation(P,state,R_to_body):
+    yaw_code_generator = CodeGenerator("./yaw_generated.cpp")
+
+    # Derive observation Jacobian for fusion of 321 sequence yaw measurement
+    # Calculate the yaw (first rotation) angle from the 321 rotation sequence
+    # Provide alternative angle that avoids singularity at +-pi/2 yaw
+    angMeasA = atan(R_to_earth[1,0]/R_to_earth[0,0])
+    H_YAW321_A = Matrix([angMeasA]).jacobian(state)
+    H_YAW321_A_simple = cse(H_YAW321_A, symbols('SA0:200'))
+
+    angMeasB = pi/2 - atan(R_to_earth[0,0]/R_to_earth[1,0])
+    H_YAW321_B = Matrix([angMeasB]).jacobian(state)
+    H_YAW321_B_simple = cse(H_YAW321_B, symbols('SB0:200'))
+
+    yaw_code_generator.print_string("calculate 321 yaw observation matrix - option A")
+    yaw_code_generator.write_subexpressions(H_YAW321_A_simple[0])
+    yaw_code_generator.write_matrix(Matrix(H_YAW321_A_simple[1]).T, "H_YAW")
+
+    yaw_code_generator.print_string("calculate 321 yaw observation matrix - option B")
+    yaw_code_generator.write_subexpressions(H_YAW321_B_simple[0])
+    yaw_code_generator.write_matrix(Matrix(H_YAW321_B_simple[1]).T, "H_YAW")
+
+    # Derive observation Jacobian for fusion of 312 sequence yaw measurement
+    # Calculate the yaw (first rotation) angle from an Euler 312 sequence
+    # Provide alternative angle that avoids singularity at +-pi/2 yaw
+    angMeasA = atan(-R_to_earth[0,1]/R_to_earth[1,1])
+    H_YAW312_A = Matrix([angMeasA]).jacobian(state)
+    H_YAW312_A_simple = cse(H_YAW312_A, symbols('SA0:200'))
+
+    angMeasB = pi/2 - atan(-R_to_earth[1,1]/R_to_earth[0,1])
+    H_YAW312_B = Matrix([angMeasB]).jacobian(state)
+    H_YAW312_B_simple = cse(H_YAW312_B, symbols('SB0:200'))
+
+    yaw_code_generator.print_string("calculate 312 yaw observation matrix - option A")
+    yaw_code_generator.write_subexpressions(H_YAW312_A_simple[0])
+    yaw_code_generator.write_matrix(Matrix(H_YAW312_A_simple[1]).T, "H_YAW")
+
+    yaw_code_generator.print_string("calculate 312 yaw observation matrix - option B")
+    yaw_code_generator.write_subexpressions(H_YAW312_B_simple[0])
+    yaw_code_generator.write_matrix(Matrix(H_YAW312_B_simple[1]).T, "H_YAW")
+
+    yaw_code_generator.close()
+
+    return
+
+# 3D magnetometer fusion
+def mag_observation(P,state,R_to_body,i,ib):
+    obs_var = create_symbol("R_MAG", real=True)  # magnetometer measurement noise variance
+
+    m_mag = R_to_body * i + ib
+
+    mag_code_generator = CodeGenerator("./3Dmag_generated.cpp")
+
+    axes = [0,1,2]
+    for index in axes:
+        equations = generate_observation_equations(P,state,m_mag[0],obs_var)
+
+        mag_code_generator.print_string("Sub Expressions - axis %i" % index)
+        mag_code_generator.write_subexpressions(equations[0])
+        mag_code_generator.print_string("Observation Jacobians - axis %i" % index)
+        mag_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_TAS")
+        mag_code_generator.print_string("Kalman gains - axis %i" % index)
+        mag_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    mag_code_generator.close()
+
+    return
+
+# airspeed fusion
+def tas_observation(P,state,vx,vy,vz,wx,wy):
+    obs_var = create_symbol("R_TAS", real=True) # true airspeed measurement noise variance
+
+    observation = sqrt((vx-wx)*(vx-wx)+(vy-wy)*(vy-wy)+vz*vz)
+
+    equations = generate_observation_equations(P,state,observation,obs_var)
+
+    tas_code_generator = CodeGenerator("./tas_generated.cpp")
+
+    tas_code_generator.print_string("Sub Expressions")
+    tas_code_generator.write_subexpressions(equations[0])
+    tas_code_generator.print_string("Observation Jacobians")
+    tas_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_TAS")
+    tas_code_generator.print_string("Kalman gains")
+    tas_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    tas_code_generator.close()
+
+    return
+
+# sideslip fusion
+def beta_observation(P,state,R_to_body,vx,vy,vz,wx,wy):
+    obs_var = create_symbol("R_BETA", real=True) # sideslip measurement noise variance
+
+    v_rel_ef = Matrix([vx-wx,vy-wy,vz])
+    v_rel_bf = R_to_body * v_rel_ef
+    observation = v_rel_bf[1]/v_rel_bf[0]
+
+    equations = generate_observation_equations(P,state,observation,obs_var)
+
+    beta_code_generator = CodeGenerator("./beta_generated.cpp")
+
+    beta_code_generator.print_string("Sub Expressions")
+    beta_code_generator.write_subexpressions(equations[0])
+    beta_code_generator.print_string("Observation Jacobians")
+    beta_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_BETA")
+    beta_code_generator.print_string("Kalman gains")
+    beta_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
+
+    beta_code_generator.close()
+
+    return
+
 symbol_name_list = []
 
 dt = create_symbol("dt", real=True)  # dt
@@ -192,315 +491,13 @@ cov_code_generator.write_matrix(Matrix(P_new_simple[1]), "nextP", True)
 
 cov_code_generator.close()
 
-# 3D magnetometer fusion
-r_mag = create_symbol("R_MAG", real=True)  # magnetometer measurement noise variance
-
-m_mag = R_to_body * i + ib
-
-H_x_mag = Matrix([m_mag[0]]).jacobian(state)
-H_y_mag = Matrix([m_mag[1]]).jacobian(state)
-H_z_mag = Matrix([m_mag[2]]).jacobian(state)
-
-K_x_mag = P * H_x_mag.T / (H_x_mag * P * H_x_mag.T + Matrix([r_mag]))
-K_y_mag = P * H_y_mag.T / (H_y_mag * P * H_y_mag.T + Matrix([r_mag]))
-K_z_mag = P * H_z_mag.T / (H_z_mag * P * H_z_mag.T + Matrix([r_mag]))
-
-mag_x_innov_var = H_x_mag * P * H_x_mag.T + Matrix([r_mag])
-mag_y_innov_var = H_y_mag * P * H_y_mag.T + Matrix([r_mag])
-mag_z_innov_var = H_z_mag * P * H_z_mag.T + Matrix([r_mag])
-
-mag_x_innov_var_simple = cse(mag_x_innov_var, symbols("SX0:100"))
-mag_y_innov_var_simple = cse(mag_y_innov_var, symbols("SY0:100"))
-mag_z_innov_var_simple = cse(mag_z_innov_var, symbols("SZ0:100"))
-
-HK_x_simple = cse(Matrix([H_x_mag.transpose(), K_x_mag]), symbols("HKX0:200"))
-HK_y_simple = cse(Matrix([H_y_mag.transpose(), K_y_mag]), symbols("HKY0:200"))
-HK_z_simple = cse(Matrix([H_z_mag.transpose(), K_z_mag]), symbols("HKZ0:200"))
-
-mag_code_generator = CodeGenerator("./3Dmag_generated.cpp")
-mag_code_generator.print_string("Equations for 3D mag fusion")
-
-# x axis
-mag_code_generator.print_string("X axis innovation variance")
-mag_code_generator.write_subexpressions(mag_x_innov_var_simple[0])
-mag_code_generator.write_matrix(Matrix(mag_x_innov_var_simple[1]), "innov_var_x")
-
-mag_code_generator.print_string("X axis observation matrix and kalman gain")
-mag_code_generator.write_subexpressions(HK_x_simple[0])
-mag_code_generator.write_matrix(Matrix(HK_x_simple[1][0][0:24]), "H_MAG")
-mag_code_generator.write_matrix(Matrix(HK_x_simple[1][0][24:]), "Kfusion")
-
-# y axis
-mag_code_generator.print_string("Y axis innovation variance")
-mag_code_generator.write_subexpressions(mag_y_innov_var_simple[0])
-mag_code_generator.write_matrix(Matrix(mag_y_innov_var_simple[1]), "innov_var_y")
-
-mag_code_generator.print_string("Y axis observation matrix and kalman gain")
-mag_code_generator.write_subexpressions(HK_y_simple[0])
-mag_code_generator.write_matrix(Matrix(HK_y_simple[1][0][0:24]), "H_MAG")
-mag_code_generator.write_matrix(Matrix(HK_y_simple[1][0][24:]), "Kfusion")
-
-# z axis
-mag_code_generator.print_string("Z axis innovation variance")
-mag_code_generator.write_subexpressions(mag_z_innov_var_simple[0])
-mag_code_generator.write_matrix(Matrix(mag_z_innov_var_simple[1]), "innov_var_z")
-
-mag_code_generator.print_string("Z axis observation matrix and kalman gain")
-mag_code_generator.write_subexpressions(HK_z_simple[0])
-mag_code_generator.write_matrix(Matrix(HK_z_simple[1][0][0:24]), "H_MAG")
-mag_code_generator.write_matrix(Matrix(HK_z_simple[1][0][24:]), "Kfusion")
-
-mag_code_generator.close()
-
-# airspeed fusion
-r_tas = create_symbol("R_TAS", real=True) # true airspeed measurement noise variance
-
-tas = sqrt((vx-wx)*(vx-wx)+(vy-wy)*(vy-wy)+vz*vz)
-H_tas = Matrix([tas]).jacobian(state)
-K_tas = P * H_tas.T / (H_tas * P * H_tas.T + Matrix([r_tas]))
-tas_innov_var = H_tas * P * H_tas.T + Matrix([r_tas])
-tas_innov_var_simple = cse(tas_innov_var, symbols("S0:100"))
-HK_tas_simple = cse(Matrix([H_tas.transpose(), K_tas]), symbols("HK0:200"))
-
-tas_code_generator = CodeGenerator("./tas_generated.cpp")
-tas_code_generator.print_string("Equations for TAS fusion")
-
-tas_code_generator.print_string("TAS innovation variance")
-tas_code_generator.write_subexpressions(tas_innov_var_simple[0])
-tas_code_generator.write_matrix(Matrix(tas_innov_var_simple[1]), "innov_var")
-
-tas_code_generator.print_string("TAS observation matrix and kalman gain")
-tas_code_generator.write_subexpressions(HK_tas_simple[0])
-tas_code_generator.write_matrix(Matrix(HK_tas_simple[1][0][0:24]), "H_TAS")
-tas_code_generator.write_matrix(Matrix(HK_tas_simple[1][0][24:]), "Kfusion")
-
-# sideslip fusion
-r_beta = create_symbol("R_BETA", real=True) # sideslip measurement noise variance
-
-v_rel_ef = Matrix([vx-wx,vy-wy,vz])
-v_rel_bf = R_to_body * v_rel_ef
-beta = v_rel_bf[1]/v_rel_bf[0]
-H_beta = Matrix([beta]).jacobian(state)
-K_beta = P * H_beta.T / (H_beta * P * H_beta.T + Matrix([r_beta]))
-beta_innov_var = H_beta * P * H_beta.T + Matrix([r_beta])
-beta_innov_var_simple = cse(beta_innov_var, symbols("S0:100"))
-HK_beta_simple = cse(Matrix([H_beta.transpose(), K_beta]), symbols("HK0:200"))
-
-beta_code_generator = CodeGenerator("./beta_generated.cpp")
-beta_code_generator.print_string("Equations for sideslip fusion")
-
-beta_code_generator.print_string("sideslip innovation variance")
-beta_code_generator.write_subexpressions(beta_innov_var_simple[0])
-beta_code_generator.write_matrix(Matrix(beta_innov_var_simple[1]), "innov_var")
-
-beta_code_generator.print_string("sideslip observation matrix and kalman gain")
-beta_code_generator.write_subexpressions(HK_beta_simple[0])
-beta_code_generator.write_matrix(Matrix(HK_beta_simple[1][0][0:24]), "H_BETA")
-beta_code_generator.write_matrix(Matrix(HK_beta_simple[1][0][24:]), "Kfusion")
-
-# yaw fusion
-yaw_code_generator = CodeGenerator("./yaw_generated.cpp")
-
-# Derive observation Jacobian for fusion of 321 sequence yaw measurement
-# Calculate the yaw (first rotation) angle from the 321 rotation sequence
-# Provide alternative angle that avoids singularity at +-pi/2 yaw
-angMeasA = atan(R_to_earth[1,0]/R_to_earth[0,0])
-H_YAW321_A = Matrix([angMeasA]).jacobian(state)
-H_YAW321_A_simple = cse(H_YAW321_A, symbols('SA0:200'))
-
-angMeasB = pi/2 - atan(R_to_earth[0,0]/R_to_earth[1,0])
-H_YAW321_B = Matrix([angMeasB]).jacobian(state)
-H_YAW321_B_simple = cse(H_YAW321_B, symbols('SB0:200'))
-
-yaw_code_generator.print_string("calculate 321 yaw observation matrix - option A")
-yaw_code_generator.write_subexpressions(H_YAW321_A_simple[0])
-yaw_code_generator.write_matrix(Matrix(H_YAW321_A_simple[1]).T, "H_YAW")
-
-yaw_code_generator.print_string("calculate 321 yaw observation matrix - option B")
-yaw_code_generator.write_subexpressions(H_YAW321_B_simple[0])
-yaw_code_generator.write_matrix(Matrix(H_YAW321_B_simple[1]).T, "H_YAW")
-
-# Derive observation Jacobian for fusion of 312 sequence yaw measurement
-# Calculate the yaw (first rotation) angle from an Euler 312 sequence
-# Provide alternative angle that avoids singularity at +-pi/2 yaw
-angMeasA = atan(-R_to_earth[0,1]/R_to_earth[1,1])
-H_YAW312_A = Matrix([angMeasA]).jacobian(state)
-H_YAW312_A_simple = cse(H_YAW312_A, symbols('SA0:200'))
-
-angMeasB = pi/2 - atan(-R_to_earth[1,1]/R_to_earth[0,1])
-H_YAW312_B = Matrix([angMeasB]).jacobian(state)
-H_YAW312_B_simple = cse(H_YAW312_B, symbols('SB0:200'))
-
-yaw_code_generator.print_string("calculate 312 yaw observation matrix - option A")
-yaw_code_generator.write_subexpressions(H_YAW312_A_simple[0])
-yaw_code_generator.write_matrix(Matrix(H_YAW312_A_simple[1]).T, "H_YAW")
-
-yaw_code_generator.print_string("calculate 312 yaw observation matrix - option B")
-yaw_code_generator.write_subexpressions(H_YAW312_B_simple[0])
-yaw_code_generator.write_matrix(Matrix(H_YAW312_B_simple[1]).T, "H_YAW")
-
-# derive equations for sequential fusion of optical flow measurements
-flow_code_generator = CodeGenerator("./flow_generated.cpp")
-range = create_symbol("range", real=True) # range from camera focal point to ground along sensor Z axis
-obs_var = create_symbol("R_LOS", real=True) # optical flow line of sight rate measurement noise variance
-
-# Define rotation matrix from body to sensor frame
-Tbs = Matrix(3,3,create_Tbs_matrix)
-
-# Calculate earth relative velocity in a non-rotating sensor frame
-relVelSensor = Tbs * R_to_body * Matrix([vx,vy,vz])
-
-# Divide by range to get predicted angular LOS rates relative to X and Y
-# axes. Note these are rates in a non-rotating sensor frame
-losRateSensorX = +relVelSensor[1]/range
-losRateSensorY = -relVelSensor[0]/range
-
-# calculate the observation Jacobian and Kalman gains for the X axis
-H_LOSX = Matrix([losRateSensorX]).jacobian(state)
-flow_innov_var_X = H_LOSX * P * H_LOSX.T + Matrix([obs_var])
-K_LOSX = (P * H_LOSX.T) / flow_innov_var_X
-HK_flow_x_simple = cse(Matrix([H_LOSX.transpose(),K_LOSX]), symbols("SX0:1000"), optimizations='basic')
-
-flow_code_generator.print_string("X axis")
-flow_code_generator.write_subexpressions(HK_flow_x_simple[0])
-flow_code_generator.write_matrix(Matrix(HK_flow_x_simple[1][0][0:24]), "H_LOS")
-flow_code_generator.write_matrix(Matrix(HK_flow_x_simple[1][0][24:]), "Kfusion")
-
-# calculate the observation Jacobian and Kalman gains for the Y axis
-H_LOSY = Matrix([losRateSensorY]).jacobian(state)
-flow_innov_var_y = H_LOSY * P * H_LOSY.T + Matrix([obs_var])
-K_LOSY = (P * H_LOSY.T) / flow_innov_var_y
-HK_flow_y_simple = cse(Matrix([H_LOSY.transpose(),K_LOSY]), symbols("SY0:1000"), optimizations='basic')
-
-flow_code_generator.print_string("Y axis")
-flow_code_generator.write_subexpressions(HK_flow_y_simple[0])
-flow_code_generator.write_matrix(Matrix(HK_flow_y_simple[1][0][0:24]), "H_LOS")
-flow_code_generator.write_matrix(Matrix(HK_flow_y_simple[1][0][24:]), "Kfusion")
-
-# Derive equations for sequential fusion of body frame velocity measurements
-obs_var = create_symbol("R_VEL", real=True) # measurement noise variance
-
-# Calculate earth relative velocity in a non-rotating sensor frame
-vel_bf = R_to_body * Matrix([vx,vy,vz])
-
-vel_bf_code_generator = CodeGenerator("./vel_bf_generated.cpp")
-axes = [0,1,2]
-H_obs = vel_bf.jacobian(state) # observation Jacobians
-K_gain = zeros(24,3)
-for index in axes:
-    innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
-    K_gain[:,index] = (P * H_obs[index,:].T) / innov_var
-    HK_simple = cse(Matrix([H_obs[index,:].transpose(),K_gain[:,index]]), symbols("S0:1000"), optimizations='basic')
-
-    vel_bf_code_generator.print_string("axis %i" % index)
-    vel_bf_code_generator.write_subexpressions(HK_simple[0])
-    vel_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
-    vel_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
-
-# attempt to calculate a combined result for efficiency
-vel_bf_code_generator_alt = CodeGenerator("./vel_bf_generated_alt.cpp")
-HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1],H_obs[2,:].transpose(),K_gain[:,2]]), symbols("S0:1000"), optimizations='basic')
-vel_bf_code_generator_alt.print_string("Sub Expressions")
-vel_bf_code_generator_alt.write_subexpressions(HK_simple[0])
-vel_bf_code_generator_alt.print_string("X axis observation Jacobians and Kalman gains")
-vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
-vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
-vel_bf_code_generator_alt.print_string("Y axis observation Jacobians and Kalman gains")
-vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
-vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
-vel_bf_code_generator_alt.print_string("Z axis observation Jacobians and Kalman gains")
-vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][96:120]), "H_VEL")
-vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][120:144]), "Kfusion")
-
-# derive equations for fusion of dual antenna yaw measurement
-obs_var = create_symbol("R_YAW", real=True) # measurement noise variance
-ant_yaw = create_symbol("ant_yaw", real=True) # yaw angle of antenna array axis wrt X body axis
-
-# define antenna vector in body frame
-ant_vec_bf = Matrix([cos(ant_yaw),sin(ant_yaw),0])
-
-# rotate into earth frame
-ant_vec_ef = R_to_body.T * ant_vec_bf
-
-# Calculate the yaw angle from the projection
-angMeas = atan(ant_vec_ef[1]/ant_vec_ef[0])
-
-H_obs = Matrix([angMeas]).jacobian(state) # measurement Jacobians
-innov_var = H_obs * P * H_obs.T + Matrix([obs_var])
-K_gain = (P * H_obs.T) / innov_var # Kalman gains
-HK_simple = cse(Matrix([H_obs.transpose(),K_gain]), symbols("S0:1000"), optimizations='basic')
-
-gps_yaw_code_generator = CodeGenerator("./gps_yaw_generated.cpp")
-gps_yaw_code_generator.print_string("Sub Expressions")
-gps_yaw_code_generator.write_subexpressions(HK_simple[0])
-gps_yaw_code_generator.print_string("Observation Jacobians")
-gps_yaw_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_YAW")
-gps_yaw_code_generator.print_string("Kalman gains")
-gps_yaw_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
-
-# derive equations for fusion of declination
-obs_var = create_symbol("R_DECL", real=True) # measurement noise variance
-
-# the predicted measurement is the angle wrt magnetic north of the horizontal
-# component of the measured field
-observation = atan(iy/ix)
-
-H_obs = Matrix([observation]).jacobian(state) # measurement Jacobians
-innov_var = H_obs * P * H_obs.T + Matrix([obs_var])
-K_gain = (P * H_obs.T) / innov_var # Kalman gains
-HK_simple = cse(Matrix([H_obs.transpose(),K_gain]), symbols("S0:1000"), optimizations='basic')
-
-mag_decl_code_generator = CodeGenerator("./mag_decl_generated.cpp")
-mag_decl_code_generator.print_string("Sub Expressions")
-mag_decl_code_generator.write_subexpressions(HK_simple[0])
-mag_decl_code_generator.print_string("Observation Jacobians")
-mag_decl_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_DECL")
-mag_decl_code_generator.print_string("Kalman gains")
-mag_decl_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
-
-# derive equations for fusion of lateral body acceleration (multirotors only)
-obs_var = create_symbol("R_ACC", real=True) # measurement noise variance
-Kaccx = create_symbol("Kaccx", real=True) # measurement noise variance
-Kaccy = create_symbol("Kaccy", real=True) # measurement noise variance
-
-# use relationship between airspeed along the X and Y body axis and the
-# drag to predict the lateral acceleration for a multirotor vehicle type
-# where propulsion forces are generated primarily along the Z body axis
-
-vrel = R_to_body*Matrix([vx-wx,vy-wy,vz]) # predicted wind relative velocity
-
-# Use this nonlinear model for the prediction in the implementation only
-# It uses a ballistic coefficient for each axis
-# accXpred = -0.5*rho*vrel[0]*vrel[0]*BCXinv # predicted acceleration measured along X body axis
-# accYpred = -0.5*rho*vrel[1]*vrel[1]*BCYinv # predicted acceleration measured along Y body axis
-
-# Use a simple viscous drag model for the linear estimator equations
-# Use the the derivative from speed to acceleration averaged across the
-# speed range. This avoids the generation of a dirac function in the derivation
-# The nonlinear equation will be used to calculate the predicted measurement in implementation
-observation = Matrix([-Kaccx*vrel[0],-Kaccy*vrel[1]])
-
-axes = [0,1]
-H_obs = observation.jacobian(state)
-K_gain = zeros(24,2)
-for index in axes:
-    innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
-    K_gain[:,index] = (P * H_obs[index,:].T) / innov_var
-
-# calculate a combined result for efficiency
-acc_bf_code_generator = CodeGenerator("./acc_bf_generated.cpp")
-HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1]]), symbols("S0:1000"), optimizations='basic')
-acc_bf_code_generator.print_string("Sub Expressions")
-acc_bf_code_generator.write_subexpressions(HK_simple[0])
-
-acc_bf_code_generator.print_string("X axis observation Jacobians")
-acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
-
-acc_bf_code_generator.print_string("X axis Kalman gains")
-acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
-
-acc_bf_code_generator.print_string("Y axis observation Jacobians")
-acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
-
-acc_bf_code_generator.print_string("XY axis Kalman gains")
-acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
+# derive autocode for observation methods
+yaw_observation(P,state,R_to_body)
+gps_yaw_observation(P,state,R_to_body)
+mag_observation(P,state,R_to_body,i,ib)
+declination_observation(P,state,ix,iy)
+tas_observation(P,state,vx,vy,vz,wx,wy)
+beta_observation(P,state,R_to_body,vx,vy,vz,wx,wy)
+optical_flow_observation(P,state,R_to_body,vx,vy,vz)
+body_fame_velocity_observation(P,state,R_to_body,vx,vy,vz)
+body_frame_accel_observation(P,state,R_to_body,vx,vy,vz,wx,wy)
