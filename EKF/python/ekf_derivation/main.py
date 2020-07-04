@@ -376,3 +376,39 @@ flow_code_generator.print_string("Y axis")
 flow_code_generator.write_subexpressions(HK_flow_y_simple[0])
 flow_code_generator.write_matrix(Matrix(HK_flow_y_simple[1][0][0:24]), "H_LOS")
 flow_code_generator.write_matrix(Matrix(HK_flow_y_simple[1][0][24:]), "Kfusion")
+
+# Derive equations for sequential fusion of body frame velocity measurements
+obs_var = create_symbol("R_VEL", real=True) # measurement noise variance
+
+# Calculate earth relative velocity in a non-rotating sensor frame
+vel_bf = R_to_body * Matrix([vx,vy,vz])
+
+# calculate the observation Jacobian and Kalman gains for the X axis
+vel_bf_code_generator = CodeGenerator("./vel_bf_generated.cpp")
+axes = [0,1,2]
+H_obs = vel_bf.jacobian(state)
+K_gain = zeros(24,3)
+for index in axes:
+    innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
+    K_gain[:,index] = (P * H_obs[index,:].T) / innov_var
+    HK_simple = cse(Matrix([H_obs[index,:].transpose(),K_gain[:,index]]), symbols("S0:1000"), optimizations='basic')
+
+    vel_bf_code_generator.print_string("axis %i" % index)
+    vel_bf_code_generator.write_subexpressions(HK_simple[0])
+    vel_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
+    vel_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
+
+# attempt to calculate a combined result for efficiency
+vel_bf_code_generator_alt = CodeGenerator("./vel_bf_generated_alt.cpp")
+HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1],H_obs[2,:].transpose(),K_gain[:,2]]), symbols("S0:1000"), optimizations='basic')
+vel_bf_code_generator_alt.print_string("Sub Expressions")
+vel_bf_code_generator_alt.write_subexpressions(HK_simple[0])
+vel_bf_code_generator_alt.print_string("X axis observation Jacobians and Kalman gains")
+vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
+vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
+vel_bf_code_generator_alt.print_string("Y axis observation Jacobians and Kalman gains")
+vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
+vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
+vel_bf_code_generator_alt.print_string("Z axis observation Jacobians and Kalman gains")
+vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][96:120]), "H_VEL")
+vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][120:144]), "Kfusion")
