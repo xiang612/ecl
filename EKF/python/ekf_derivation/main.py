@@ -412,3 +412,29 @@ vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion"
 vel_bf_code_generator_alt.print_string("Z axis observation Jacobians and Kalman gains")
 vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][96:120]), "H_VEL")
 vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][120:144]), "Kfusion")
+
+# derive equations for fusion of dual antenna yaw measurement
+obs_var = create_symbol("R_YAW", real=True) # measurement noise variance
+ant_yaw = create_symbol("ant_yaw", real=True) # yaw angle of antenna array axis wrt X body axis
+
+# define antenna vector in body frame
+ant_vec_bf = Matrix([cos(ant_yaw),sin(ant_yaw),0])
+
+# rotate into earth frame
+ant_vec_ef = R_to_body.T * ant_vec_bf
+
+# Calculate the yaw angle from the projection
+angMeas = atan(ant_vec_ef[1]/ant_vec_ef[0])
+
+H_obs = Matrix([angMeas]).jacobian(state) # measurement Jacobians
+innov_var = H_obs * P * H_obs.T + Matrix([obs_var])
+K_gain = (P * H_obs.T) / innov_var # Kalman gains
+HK_simple = cse(Matrix([H_obs.transpose(),K_gain]), symbols("S0:1000"), optimizations='basic')
+
+gps_yaw_code_generator = CodeGenerator("./gps_yaw_generated.cpp")
+gps_yaw_code_generator.print_string("Sub Expressions")
+gps_yaw_code_generator.write_subexpressions(HK_simple[0])
+gps_yaw_code_generator.print_string("Observation Jacobians")
+gps_yaw_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_YAW")
+gps_yaw_code_generator.print_string("Kalman gains")
+gps_yaw_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
