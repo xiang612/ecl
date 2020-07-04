@@ -53,7 +53,23 @@ def generate_observation_equations(P,state,observation,variance):
     H = Matrix([observation]).jacobian(state)
     innov_var = H * P * H.T + Matrix([variance])
     K = P * H.T / innov_var
-    HK_simple = cse(Matrix([H.transpose(), K]), symbols("HK0:200"), optimizations='basic')
+    HK_simple = cse(Matrix([H.transpose(), K]), symbols("HK0:1000"), optimizations='basic')
+
+    return HK_simple
+
+# generate equations for observation vector Jacobian and Kalman gain
+# n_obs is the vector dimension and must be >= 2
+def generate_observation_vector_equations(P,state,observation,variance,n_obs):
+    K = zeros(24,n_obs)
+    H = observation.jacobian(state)
+    HK = zeros(n_obs*48,1)
+    for index in range(n_obs):
+        H[index,:] = Matrix([observation[index]]).jacobian(state)
+        innov_var = H[index,:] * P * H[index,:].T + Matrix([variance])
+        K[:,index] = P * H[index,:].T / innov_var
+        HK[index*48:(index+1)*48,0] = Matrix([H[index,:].transpose(), K[:,index]])
+
+    HK_simple = cse(HK, symbols("HK0:1000"), optimizations='basic')
 
     return HK_simple
 
@@ -95,7 +111,7 @@ def optical_flow_observation(P,state,R_to_body,vx,vy,vz):
     return
 
 # Derive equations for sequential fusion of body frame velocity measurements
-def body_fame_velocity_observation(P,state,R_to_body,vx,vy,vz):
+def body_frame_velocity_observation(P,state,R_to_body,vx,vy,vz):
     obs_var = create_symbol("R_VEL", real=True) # measurement noise variance
 
     # Calculate earth relative velocity in a non-rotating sensor frame
@@ -115,20 +131,21 @@ def body_fame_velocity_observation(P,state,R_to_body,vx,vy,vz):
 
     vel_bf_code_generator.close()
 
-    # calculate a combined result for a small reduction in operations, but will use more stack
+    # calculate a combined result for a possible reduction in operations, but will use slightly more stack
+    equations = generate_observation_vector_equations(P,state,vel_bf,obs_var,3)
+
     vel_bf_code_generator_alt = CodeGenerator("./vel_bf_generated_alt.cpp")
-    HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1],H_obs[2,:].transpose(),K_gain[:,2]]), symbols("S0:1000"), optimizations='basic')
     vel_bf_code_generator_alt.print_string("Sub Expressions")
-    vel_bf_code_generator_alt.write_subexpressions(HK_simple[0])
+    vel_bf_code_generator_alt.write_subexpressions(equations[0])
     vel_bf_code_generator_alt.print_string("X axis observation Jacobians and Kalman gains")
-    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
-    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
+    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][0:24]), "H_VEL")
+    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][24:48]), "Kfusion")
     vel_bf_code_generator_alt.print_string("Y axis observation Jacobians and Kalman gains")
-    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
-    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
+    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][48:72]), "H_VEL")
+    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][72:96]), "Kfusion")
     vel_bf_code_generator_alt.print_string("Z axis observation Jacobians and Kalman gains")
-    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][96:120]), "H_VEL")
-    vel_bf_code_generator_alt.write_matrix(Matrix(HK_simple[1][0][120:144]), "Kfusion")
+    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][96:120]), "H_VEL")
+    vel_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][120:144]), "Kfusion")
 
     vel_bf_code_generator_alt.close()
 
@@ -205,32 +222,42 @@ def body_frame_accel_observation(P,state,R_to_body,vx,vy,vz,wx,wy):
     # The nonlinear equation will be used to calculate the predicted measurement in implementation
     observation = Matrix([-Kaccx*vrel[0],-Kaccy*vrel[1]])
 
+    acc_bf_code_generator  = CodeGenerator("./acc_bf_code_generator.cpp")
+    H = observation.jacobian(state)
+    K = zeros(24,2)
     axes = [0,1]
-    H_obs = observation.jacobian(state)
-    K_gain = zeros(24,2)
     for index in axes:
-        innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
-        K_gain[:,index] = (P * H_obs[index,:].T) / innov_var
+        equations = generate_observation_equations(P,state,observation[index],obs_var)
 
-    # calculate a combined result for efficiency
-    acc_bf_code_generator = CodeGenerator("./acc_bf_generated.cpp")
-    HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1]]), symbols("S0:1000"), optimizations='basic')
-    acc_bf_code_generator.print_string("Sub Expressions")
-    acc_bf_code_generator.write_subexpressions(HK_simple[0])
-
-    acc_bf_code_generator.print_string("X axis observation Jacobians")
-    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
-
-    acc_bf_code_generator.print_string("X axis Kalman gains")
-    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
-
-    acc_bf_code_generator.print_string("Y axis observation Jacobians")
-    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
-
-    acc_bf_code_generator.print_string("XY axis Kalman gains")
-    acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
+        acc_bf_code_generator.print_string("Sub Expressions - axis %i" % index)
+        acc_bf_code_generator.write_subexpressions(equations[0])
+        acc_bf_code_generator.print_string("Observation Jacobians - axis %i" % index)
+        acc_bf_code_generator.write_matrix(Matrix(equations[1][0][0:24]), "H_ACC")
+        acc_bf_code_generator.print_string("Kalman gains - axis %i" % index)
+        acc_bf_code_generator.write_matrix(Matrix(equations[1][0][24:]), "Kfusion")
 
     acc_bf_code_generator.close()
+
+    # calculate a combined result for a possible reduction in operations, but will use slighlty more stack
+    equations = generate_observation_vector_equations(P,state,observation,obs_var,2)
+
+    acc_bf_code_generator_alt  = CodeGenerator("./acc_bf_generated_alt_.cpp")
+    acc_bf_code_generator_alt.print_string("Sub Expressions")
+    acc_bf_code_generator_alt.write_subexpressions(equations[0])
+
+    acc_bf_code_generator_alt.print_string("X axis observation Jacobians")
+    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][0:24]), "H_ACC")
+
+    acc_bf_code_generator_alt.print_string("X axis Kalman gains")
+    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][24:48]), "Kfusion")
+
+    acc_bf_code_generator_alt.print_string("Y axis observation Jacobians")
+    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][48:72]), "H_ACC")
+
+    acc_bf_code_generator_alt.print_string("Y axis Kalman gains")
+    acc_bf_code_generator_alt.write_matrix(Matrix(equations[1][0][72:96]), "Kfusion")
+
+    acc_bf_code_generator_alt.close()
 
     return
 
@@ -499,5 +526,5 @@ declination_observation(P,state,ix,iy)
 tas_observation(P,state,vx,vy,vz,wx,wy)
 beta_observation(P,state,R_to_body,vx,vy,vz,wx,wy)
 optical_flow_observation(P,state,R_to_body,vx,vy,vz)
-body_fame_velocity_observation(P,state,R_to_body,vx,vy,vz)
+body_frame_velocity_observation(P,state,R_to_body,vx,vy,vz)
 body_frame_accel_observation(P,state,R_to_body,vx,vy,vz,wx,wy)

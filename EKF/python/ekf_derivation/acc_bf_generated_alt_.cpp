@@ -67,30 +67,30 @@ float HK64 = Kaccy/(HK19*HK51*HK61 - HK20*HK51*HK63 + HK21*HK51*HK62 + HK22*HK50
 
 
 // X axis observation Jacobians
-H_VEL(0) = -HK2*HK3;
-H_VEL(1) = -HK3*HK4;
-H_VEL(2) = HK3*HK5;
-H_VEL(3) = -HK3*HK6;
-H_VEL(4) = -HK11;
-H_VEL(5) = -HK15;
-H_VEL(6) = HK16*HK3;
-H_VEL(7) = 0;
-H_VEL(8) = 0;
-H_VEL(9) = 0;
-H_VEL(10) = 0;
-H_VEL(11) = 0;
-H_VEL(12) = 0;
-H_VEL(13) = 0;
-H_VEL(14) = 0;
-H_VEL(15) = 0;
-H_VEL(16) = 0;
-H_VEL(17) = 0;
-H_VEL(18) = 0;
-H_VEL(19) = 0;
-H_VEL(20) = 0;
-H_VEL(21) = 0;
-H_VEL(22) = HK11;
-H_VEL(23) = HK15;
+H_ACC(0) = -HK2*HK3;
+H_ACC(1) = -HK3*HK4;
+H_ACC(2) = HK3*HK5;
+H_ACC(3) = -HK3*HK6;
+H_ACC(4) = -HK11;
+H_ACC(5) = -HK15;
+H_ACC(6) = HK16*HK3;
+H_ACC(7) = 0;
+H_ACC(8) = 0;
+H_ACC(9) = 0;
+H_ACC(10) = 0;
+H_ACC(11) = 0;
+H_ACC(12) = 0;
+H_ACC(13) = 0;
+H_ACC(14) = 0;
+H_ACC(15) = 0;
+H_ACC(16) = 0;
+H_ACC(17) = 0;
+H_ACC(18) = 0;
+H_ACC(19) = 0;
+H_ACC(20) = 0;
+H_ACC(21) = 0;
+H_ACC(22) = HK11;
+H_ACC(23) = HK15;
 
 
 // X axis Kalman gains
@@ -121,33 +121,33 @@ Kfusion(23) = -HK26*HK41;
 
 
 // Y axis observation Jacobians
-H_VEL(0) = -HK22*Kaccy;
-H_VEL(1) = -HK21*Kaccy;
-H_VEL(2) = -HK19*Kaccy;
-H_VEL(3) = HK20*Kaccy;
-H_VEL(4) = HK44;
-H_VEL(5) = -HK46;
-H_VEL(6) = -HK43*HK47;
-H_VEL(7) = 0;
-H_VEL(8) = 0;
-H_VEL(9) = 0;
-H_VEL(10) = 0;
-H_VEL(11) = 0;
-H_VEL(12) = 0;
-H_VEL(13) = 0;
-H_VEL(14) = 0;
-H_VEL(15) = 0;
-H_VEL(16) = 0;
-H_VEL(17) = 0;
-H_VEL(18) = 0;
-H_VEL(19) = 0;
-H_VEL(20) = 0;
-H_VEL(21) = 0;
-H_VEL(22) = -HK44;
-H_VEL(23) = HK46;
+H_ACC(0) = -HK22*Kaccy;
+H_ACC(1) = -HK21*Kaccy;
+H_ACC(2) = -HK19*Kaccy;
+H_ACC(3) = HK20*Kaccy;
+H_ACC(4) = HK44;
+H_ACC(5) = -HK46;
+H_ACC(6) = -HK43*HK47;
+H_ACC(7) = 0;
+H_ACC(8) = 0;
+H_ACC(9) = 0;
+H_ACC(10) = 0;
+H_ACC(11) = 0;
+H_ACC(12) = 0;
+H_ACC(13) = 0;
+H_ACC(14) = 0;
+H_ACC(15) = 0;
+H_ACC(16) = 0;
+H_ACC(17) = 0;
+H_ACC(18) = 0;
+H_ACC(19) = 0;
+H_ACC(20) = 0;
+H_ACC(21) = 0;
+H_ACC(22) = -HK44;
+H_ACC(23) = HK46;
 
 
-// XY axis Kalman gains
+// Y axis Kalman gains
 Kfusion(0) = -HK50*HK64;
 Kfusion(1) = -HK62*HK64;
 Kfusion(2) = -HK61*HK64;
