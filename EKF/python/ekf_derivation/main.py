@@ -383,10 +383,9 @@ obs_var = create_symbol("R_VEL", real=True) # measurement noise variance
 # Calculate earth relative velocity in a non-rotating sensor frame
 vel_bf = R_to_body * Matrix([vx,vy,vz])
 
-# calculate the observation Jacobian and Kalman gains for the X axis
 vel_bf_code_generator = CodeGenerator("./vel_bf_generated.cpp")
 axes = [0,1,2]
-H_obs = vel_bf.jacobian(state)
+H_obs = vel_bf.jacobian(state) # observation Jacobians
 K_gain = zeros(24,3)
 for index in axes:
     innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
@@ -458,3 +457,50 @@ mag_decl_code_generator.print_string("Observation Jacobians")
 mag_decl_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_DECL")
 mag_decl_code_generator.print_string("Kalman gains")
 mag_decl_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
+
+# derive equations for fusion of lateral body acceleration (multirotors only)
+obs_var = create_symbol("R_ACC", real=True) # measurement noise variance
+Kaccx = create_symbol("Kaccx", real=True) # measurement noise variance
+Kaccy = create_symbol("Kaccy", real=True) # measurement noise variance
+
+# use relationship between airspeed along the X and Y body axis and the
+# drag to predict the lateral acceleration for a multirotor vehicle type
+# where propulsion forces are generated primarily along the Z body axis
+
+vrel = R_to_body*Matrix([vx-wx,vy-wy,vz]) # predicted wind relative velocity
+
+# Use this nonlinear model for the prediction in the implementation only
+# It uses a ballistic coefficient for each axis
+# accXpred = -0.5*rho*vrel[0]*vrel[0]*BCXinv # predicted acceleration measured along X body axis
+# accYpred = -0.5*rho*vrel[1]*vrel[1]*BCYinv # predicted acceleration measured along Y body axis
+
+# Use a simple viscous drag model for the linear estimator equations
+# Use the the derivative from speed to acceleration averaged across the
+# speed range. This avoids the generation of a dirac function in the derivation
+# The nonlinear equation will be used to calculate the predicted measurement in implementation
+observation = Matrix([-Kaccx*vrel[0],-Kaccy*vrel[1]])
+
+axes = [0,1]
+H_obs = observation.jacobian(state)
+K_gain = zeros(24,2)
+for index in axes:
+    innov_var = H_obs[index,:] * P * H_obs[index,:].T + Matrix([obs_var])
+    K_gain[:,index] = (P * H_obs[index,:].T) / innov_var
+
+# calculate a combined result for efficiency
+acc_bf_code_generator = CodeGenerator("./acc_bf_generated.cpp")
+HK_simple = cse(Matrix([H_obs[0,:].transpose(),K_gain[:,0],H_obs[1,:].transpose(),K_gain[:,1]]), symbols("S0:1000"), optimizations='basic')
+acc_bf_code_generator.print_string("Sub Expressions")
+acc_bf_code_generator.write_subexpressions(HK_simple[0])
+
+acc_bf_code_generator.print_string("X axis observation Jacobians")
+acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_VEL")
+
+acc_bf_code_generator.print_string("X axis Kalman gains")
+acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][24:48]), "Kfusion")
+
+acc_bf_code_generator.print_string("Y axis observation Jacobians")
+acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][48:72]), "H_VEL")
+
+acc_bf_code_generator.print_string("XY axis Kalman gains")
+acc_bf_code_generator.write_matrix(Matrix(HK_simple[1][0][72:96]), "Kfusion")
