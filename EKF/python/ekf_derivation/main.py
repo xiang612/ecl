@@ -438,3 +438,23 @@ gps_yaw_code_generator.print_string("Observation Jacobians")
 gps_yaw_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_YAW")
 gps_yaw_code_generator.print_string("Kalman gains")
 gps_yaw_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
+
+# derive equations for fusion of declination
+obs_var = create_symbol("R_DECL", real=True) # measurement noise variance
+
+# the predicted measurement is the angle wrt magnetic north of the horizontal
+# component of the measured field
+observation = atan(iy/ix)
+
+H_obs = Matrix([observation]).jacobian(state) # measurement Jacobians
+innov_var = H_obs * P * H_obs.T + Matrix([obs_var])
+K_gain = (P * H_obs.T) / innov_var # Kalman gains
+HK_simple = cse(Matrix([H_obs.transpose(),K_gain]), symbols("S0:1000"), optimizations='basic')
+
+mag_decl_code_generator = CodeGenerator("./mag_decl_generated.cpp")
+mag_decl_code_generator.print_string("Sub Expressions")
+mag_decl_code_generator.write_subexpressions(HK_simple[0])
+mag_decl_code_generator.print_string("Observation Jacobians")
+mag_decl_code_generator.write_matrix(Matrix(HK_simple[1][0][0:24]), "H_DECL")
+mag_decl_code_generator.print_string("Kalman gains")
+mag_decl_code_generator.write_matrix(Matrix(HK_simple[1][0][24:]), "Kfusion")
