@@ -409,81 +409,65 @@ void Ekf::fuseMag()
 void Ekf::fuseYaw321(float yaw, float yaw_variance, bool zero_innovation)
 {
 	// assign intermediate state variables
-	const float q0 = _state.quat_nominal(0);
-	const float q1 = _state.quat_nominal(1);
-	const float q2 = _state.quat_nominal(2);
-	const float q3 = _state.quat_nominal(3);
+	const float &q0 = _state.quat_nominal(0);
+	const float &q1 = _state.quat_nominal(1);
+	const float &q2 = _state.quat_nominal(2);
+	const float &q3 = _state.quat_nominal(3);
 
 	float R_YAW = fmaxf(yaw_variance, 1.0e-4f);
 	float measurement = wrap_pi(yaw);
 	float H_YAW[4];
 
-	// calculate observation jacobian when we are observing the first rotation in a 321 sequence
-	float t9 = q0*q3;
-	float t10 = q1*q2;
-	float t2 = t9+t10;
-	float t3 = q0*q0;
-	float t4 = q1*q1;
-	float t5 = q2*q2;
-	float t6 = q3*q3;
-	float t7 = t3+t4-t5-t6;
+    // calculate 321 yaw observation matrix
+	// choose A or B computational paths to avoid singularity in derivation at +-90 degrees yaw
+	bool canUseA = false;
+	const float SA0 = 2*q3;
+	const float SA1 = 2*q2;
+	const float SA2 = SA0*q0 + SA1*q1;
+	const float SA3 = sq(q0) + sq(q1) - sq(q2) - sq(q3);
+	float SA4, SA5_inv;
+	if (sq(SA3) > 1E-6f) {
+		SA4 = 1.0F/sq(SA3);
+		SA5_inv = sq(SA2)*SA4 + 1;
+		canUseA = fabsf(SA5_inv) > 1E-6f;
+	}
 
-	float t16 = q3*t3;
-	float t17 = q3*t5;
-	float t18 = q0*q1*q2*2.0f;
-	float t19 = t16+t17+t18-q3*t4+q3*t6;
+	bool canUseB = false;
+	const float SB0 = 2*q0;
+	const float SB1 = 2*q1;
+	const float SB2 = SB0*q3 + SB1*q2;
+	const float SB4 = sq(q0) + sq(q1) - sq(q2) - sq(q3);
+	float SB3, SB5_inv;
+	if (sq(SB2) > 1E-6f) {
+		SB3 = 1.0F/sq(SB2);
+		SB5_inv = SB3*sq(SB4) + 1;
+		canUseB = fabsf(SB5_inv) > 1E-6f;
+	}
 
-	float t24 = q2*t4;
-	float t25 = q2*t6;
-	float t26 = q0*q1*q3*2.0f;
-	float t27 = t24+t25+t26-q2*t3+q2*t5;
-	float t28 = q1*t3;
-	float t29 = q1*t5;
-	float t30 = q0*q2*q3*2.0f;
-	float t31 = t28+t29+t30+q1*t4-q1*t6;
-	float t32 = q0*t4;
-	float t33 = q0*t6;
-	float t34 = q1*q2*q3*2.0f;
-	float t35 = t32+t33+t34+q0*t3-q0*t5;
+	if (canUseA && (!canUseB || fabsf(SA5_inv) >= fabsf(SB5_inv))) {
+		const float SA5 = 1.0F/SA5_inv;
+		const float SA6 = 1.0F/SA3;
+		const float SA7 = SA2*SA4;
+		const float SA8 = 2*SA7;
+		const float SA9 = 2*SA6;
 
-	// two computational paths are provided to work around singularities in calculation of the Jacobians
-	float t8 = t7*t7;
-	float t15 = t2*t2;
-	if (t8 > t15 && t8 > 1E-6f) {
-		// this path has a singularities at yaw = +-90 degrees
-		t8 = 1.0f/t8;
-		float t11 = t2*t2;
-		float t12 = t8*t11*4.0f;
-		float t13 = t12+1.0f;
-		float t14 = 1.0f/t13;
+		H_YAW[0] = SA5*(SA0*SA6 - SA8*q0);
+		H_YAW[1] = SA5*(SA1*SA6 - SA8*q1);
+		H_YAW[2] = SA5*(SA1*SA7 + SA9*q1);
+		H_YAW[3] = SA5*(SA0*SA7 + SA9*q0);
+	} else if (canUseB && (!canUseA || fabsf(SB5_inv) > fabsf(SA5_inv))) {
+		const float SB5 = 1.0F/SB5_inv;
+		const float SB6 = 1.0F/SB2;
+		const float SB7 = SB3*SB4;
+		const float SB8 = 2*SB7;
+		const float SB9 = 2*SB6;
 
-		H_YAW[0] = t8*t14*t19*(-2.0f);
-		H_YAW[1] = t8*t14*t27*(-2.0f);
-		H_YAW[2] = t8*t14*t31*2.0f;
-		H_YAW[3] = t8*t14*t35*2.0f;
-
-	} else if (t15 > 1E-6f) {
-		// this path has singularities at yaw = 0 and +-180 deg
-		t15 = 1.0f/t15;
-		float t20 = t7*t7;
-		float t21 = t15*t20*0.25f;
-		float t22 = t21+1.0f;
-
-		if (fabsf(t22) > 1E-6f) {
-			float t23 = 1.0f/t22;
-
-			H_YAW[0] = t15*t19*t23*(-0.5f);
-			H_YAW[1] = t15*t23*t27*(-0.5f);
-			H_YAW[2] = t15*t23*t31*0.5f;
-			H_YAW[3] = t15*t23*t35*0.5f;
-
-		} else {
-			return;
-
-		}
+		H_YAW[0] = -SB5*(SB0*SB6 - SB8*q3);
+		H_YAW[1] = -SB5*(SB1*SB6 - SB8*q2);
+		H_YAW[2] = -SB5*(-SB1*SB7 - SB9*q2);
+		H_YAW[3] = -SB5*(-SB0*SB7 - SB9*q3);
 	} else {
 		return;
-
 	}
 
 	// calculate the yaw innovation and wrap to the interval between +-pi
@@ -513,68 +497,56 @@ void Ekf::fuseYaw312(float yaw, float yaw_variance, bool zero_innovation)
 	float measurement = wrap_pi(yaw);
 	float H_YAW[4];
 
-	// calculate observation jacobian when we are observing a rotation in a 312 sequence
-	float t9 = q0*q3;
-	float t10 = q1*q2;
-	float t2 = t9-t10;
-	float t3 = q0*q0;
-	float t4 = q1*q1;
-	float t5 = q2*q2;
-	float t6 = q3*q3;
-	float t7 = t3-t4+t5-t6;
+    // calculate 312 yaw observation matrix
+	// choose A or B computational paths to avoid singularity in derivation at +-90 degrees yaw
+	bool canUseA = false;
+	const float SA0 = 2*q3;
+	const float SA1 = 2*q2;
+	const float SA2 = SA0*q0 - SA1*q1;
+	const float SA3 = sq(q0) - sq(q1) + sq(q2) - sq(q3);
+	float SA4, SA5_inv;
+	if (sq(SA3) > 1E-6f) {
+		SA4 = 1.0F/sq(SA3);
+		SA5_inv = sq(SA2)*SA4 + 1;
+		canUseA = fabsf(SA5_inv) > 1E-6f;
+	}
 
-	float t16 = q3*t3;
-	float t17 = q3*t4;
-	float t18 = t16+t17-q3*t5+q3*t6-q0*q1*q2*2.0f;
-	float t23 = q2*t3;
-	float t24 = q2*t4;
-	float t25 = t23+t24+q2*t5-q2*t6-q0*q1*q3*2.0f;
-	float t26 = q1*t5;
-	float t27 = q1*t6;
-	float t28 = t26+t27-q1*t3+q1*t4-q0*q2*q3*2.0f;
-	float t29 = q0*t5;
-	float t30 = q0*t6;
-	float t31 = t29+t30+q0*t3-q0*t4-q1*q2*q3*2.0f;
+	bool canUseB = false;
+	const float SB0 = 2*q0;
+	const float SB1 = 2*q1;
+	const float SB2 = -SB0*q3 + SB1*q2;
+	const float SB4 = -sq(q0) + sq(q1) - sq(q2) + sq(q3);
+	float SB3, SB5_inv;
+	if (sq(SB2) > 1E-6f) {
+		SB3 = 1.0F/sq(SB2);
+		SB5_inv = SB3*sq(SB4) + 1;
+		canUseB = fabsf(SB5_inv) > 1E-6f;
+	}
 
-	// two computational paths are provided to work around singularities in calculation of the Jacobians
-	float t8 = t7*t7;
-	float t15 = t2*t2;
-	if (t8 > t15 && t8 > 1E-6f) {
-		// this path has a singularities at yaw = +-90 degrees
-		t8 = 1.0f/t8;
-		float t11 = t2*t2;
-		float t12 = t8*t11*4.0f;
-		float t13 = t12+1.0f;
-		float t14 = 1.0f/t13;
+	if (canUseA && (!canUseB || fabsf(SA5_inv) >= fabsf(SB5_inv))) {
+		const float SA5 = 1.0F/SA5_inv;
+		const float SA6 = 1.0F/SA3;
+		const float SA7 = SA2*SA4;
+		const float SA8 = 2*SA7;
+		const float SA9 = 2*SA6;
 
-		H_YAW[0] = t8*t14*t18*(-2.0f);
-		H_YAW[1] = t8*t14*t25*(-2.0f);
-		H_YAW[2] = t8*t14*t28*2.0f;
-		H_YAW[3] = t8*t14*t31*2.0f;
+		H_YAW[0] = SA5*(SA0*SA6 - SA8*q0);
+		H_YAW[1] = SA5*(-SA1*SA6 + SA8*q1);
+		H_YAW[2] = SA5*(-SA1*SA7 - SA9*q1);
+		H_YAW[3] = SA5*(SA0*SA7 + SA9*q0);
+	} else if (canUseB && (!canUseA || fabsf(SB5_inv) > fabsf(SA5_inv))) {
+		const float SB5 = 1.0F/SB5_inv;
+		const float SB6 = 1.0F/SB2;
+		const float SB7 = SB3*SB4;
+		const float SB8 = 2*SB7;
+		const float SB9 = 2*SB6;
 
-	} else if (t15 > 1E-6f) {
-		// this path has singularities at yaw = 0 and +-180 deg
-		t15 = 1.0f/t15;
-		float t19 = t7*t7;
-		float t20 = t15*t19*0.25f;
-		float t21 = t20+1.0f;
-
-		if (fabsf(t21) > 1E-6f) {
-			float t22 = 1.0f/t21;
-
-			H_YAW[0] = t15*t18*t22*(-0.5f);
-			H_YAW[1] = t15*t22*t25*(-0.5f);
-			H_YAW[2] = t15*t22*t28*0.5f;
-			H_YAW[3] = t15*t22*t31*0.5f;
-
-		} else {
-			return;
-
-		}
-
+		H_YAW[0] = -SB5*(-SB0*SB6 + SB8*q3);
+		H_YAW[1] = -SB5*(SB1*SB6 - SB8*q2);
+		H_YAW[2] = -SB5*(-SB1*SB7 - SB9*q2);
+		H_YAW[3] = -SB5*(SB0*SB7 + SB9*q3);
 	} else {
 		return;
-
 	}
 
 	float innovation;
