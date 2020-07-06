@@ -34,6 +34,7 @@
 /**
  * @file sideslip_fusion.cpp
  * sideslip fusion methods.
+ * equations generated using EKF/python/ekf_derivation/main.py
  *
  * @author Carl Olsson <carlolsson.co@gmail.com>
  * @author Paul Riseborough <p_riseborough@live.com.au>

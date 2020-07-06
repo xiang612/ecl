@@ -35,6 +35,7 @@
  * @file covariance.cpp
  * Contains functions for initialising, predicting and updating the state
  * covariance matrix
+ * equations generated using EKF/python/ekf_derivation/main.py
  *
  * @author Roman Bast <bastroman@gmail.com>
  *
@@ -265,6 +266,9 @@ void Ekf::predictCovariance()
 	if (_imu_sample_delayed.delta_vel_clipping[2]) {
 		dvzVar = sq(dt * BADACC_BIAS_PNOISE);
 	}
+
+	// predict the covariance
+	// equations generated using EKF/python/ekf_derivation/main.py
 
 	// intermediate calculations
 	const float PS0 = powf(q1, 2);

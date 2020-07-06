@@ -34,6 +34,7 @@
 /**
  * @file heading_fusion.cpp
  * Magnetometer fusion methods.
+ * Equations generated using EKF/python/ekf_derivation/main.py
  *
  * @author Roman Bast <bapstroman@gmail.com>
  * @author Paul Riseborough <p_riseborough@live.com.au>

@@ -34,6 +34,7 @@
 /**
  * @file gps_yaw_fusion.cpp
  * Definition of functions required to use yaw obtained from GPS dual antenna measurements.
+ * Equations generated using EKF/python/ekf_derivation/main.py
  *
  * @author Paul Riseborough <p_riseborough@live.com.au>
  *

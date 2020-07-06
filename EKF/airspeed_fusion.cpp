@@ -34,6 +34,7 @@
 /**
  * @file airspeed_fusion.cpp
  * airspeed fusion methods.
+ * equations generated using EKF/python/ekf_derivation/main.py
  *
  * @author Carl Olsson <carlolsson.co@gmail.com>
  * @author Roman Bast <bapstroman@gmail.com>

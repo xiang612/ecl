@@ -33,7 +33,8 @@
 
 /**
  * @file drag_fusion.cpp
- * body frame drag fusion methods used for multi-rotor wind estimation.
+ * Body frame drag fusion methods used for multi-rotor wind estimation.
+ * equations generated using EKF/python/ekf_derivation/main.py
  *
  * @author Paul Riseborough <p_riseborough@live.com.au>
  *
