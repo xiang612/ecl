@@ -34,10 +34,12 @@ class CodeGenerator:
             write_string = write_string + identifier + " = " + self.get_ccode(matrix[0]) + ";\n"
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
             for i in range(0,len(matrix)):
-                # alternative array format
-                # write_string = write_string + identifier + "(" + str(i) + ") = " + self.get_ccode(matrix[i]) + ";\n"
-                # legacy array format
-                write_string = write_string + identifier + "[" + str(i) + "] = " + self.get_ccode(matrix[i]) + ";\n"
+                if (identifier == "Kfusion"):
+                    # Vector f format used by Kfusion
+                    write_string = write_string + identifier + "(" + str(i) + ") = " + self.get_ccode(matrix[i]) + ";\n"
+                else:
+                    # legacy array format used by Hfusion
+                    write_string = write_string + identifier + "[" + str(i) + "] = " + self.get_ccode(matrix[i]) + ";\n"
         else:
             for j in range(0, matrix.shape[1]):
                 for i in range(0, matrix.shape[0]):
