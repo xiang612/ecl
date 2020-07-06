@@ -218,7 +218,7 @@ void Ekf::fuseMag()
 
 	// Observation jacobian and Kalman gain vectors
 	float Hfusion[24];
-	float Kfusion[24];
+	Vector24f Kfusion;
 
 	// Perform an innovation consistency check and report the result
 	bool healthy = true;
@@ -269,40 +269,40 @@ void Ekf::fuseMag()
 
 			// Calculate X axis Kalman gains
 			if (update_all_states) {
-				Kfusion[0] = HK36*HK50;
-				Kfusion[1] = HK48*HK50;
-				Kfusion[2] = HK41*HK50;
-				Kfusion[3] = HK45*HK50;
-				Kfusion[4] = HK50*(HK21*P(4,16) + HK27*P(4,17) - HK28*P(4,18) + HK29*P(1,4) + HK30*P(0,4) - HK32*P(2,4) + HK34*P(3,4) + P(4,19));
-				Kfusion[5] = HK50*(HK21*P(5,16) + HK27*P(5,17) - HK28*P(5,18) + HK29*P(1,5) + HK30*P(0,5) - HK32*P(2,5) + HK34*P(3,5) + P(5,19));
-				Kfusion[6] = HK50*(HK21*P(6,16) + HK27*P(6,17) - HK28*P(6,18) + HK29*P(1,6) + HK30*P(0,6) - HK32*P(2,6) + HK34*P(3,6) + P(6,19));
-				Kfusion[7] = HK50*(HK21*P(7,16) + HK27*P(7,17) - HK28*P(7,18) + HK29*P(1,7) + HK30*P(0,7) - HK32*P(2,7) + HK34*P(3,7) + P(7,19));
-				Kfusion[8] = HK50*(HK21*P(8,16) + HK27*P(8,17) - HK28*P(8,18) + HK29*P(1,8) + HK30*P(0,8) - HK32*P(2,8) + HK34*P(3,8) + P(8,19));
-				Kfusion[9] = HK50*(HK21*P(9,16) + HK27*P(9,17) - HK28*P(9,18) + HK29*P(1,9) + HK30*P(0,9) - HK32*P(2,9) + HK34*P(3,9) + P(9,19));
-				Kfusion[10] = HK50*(HK21*P(10,16) + HK27*P(10,17) - HK28*P(10,18) + HK29*P(1,10) + HK30*P(0,10) - HK32*P(2,10) + HK34*P(3,10) + P(10,19));
-				Kfusion[11] = HK50*(HK21*P(11,16) + HK27*P(11,17) - HK28*P(11,18) + HK29*P(1,11) + HK30*P(0,11) - HK32*P(2,11) + HK34*P(3,11) + P(11,19));
-				Kfusion[12] = HK50*(HK21*P(12,16) + HK27*P(12,17) - HK28*P(12,18) + HK29*P(1,12) + HK30*P(0,12) - HK32*P(2,12) + HK34*P(3,12) + P(12,19));
-				Kfusion[13] = HK50*(HK21*P(13,16) + HK27*P(13,17) - HK28*P(13,18) + HK29*P(1,13) + HK30*P(0,13) - HK32*P(2,13) + HK34*P(3,13) + P(13,19));
-				Kfusion[14] = HK50*(HK21*P(14,16) + HK27*P(14,17) - HK28*P(14,18) + HK29*P(1,14) + HK30*P(0,14) - HK32*P(2,14) + HK34*P(3,14) + P(14,19));
-				Kfusion[15] = HK50*(HK21*P(15,16) + HK27*P(15,17) - HK28*P(15,18) + HK29*P(1,15) + HK30*P(0,15) - HK32*P(2,15) + HK34*P(3,15) + P(15,19));
-				Kfusion[22] = HK50*(HK21*P(16,22) + HK27*P(17,22) - HK28*P(18,22) + HK29*P(1,22) + HK30*P(0,22) - HK32*P(2,22) + HK34*P(3,22) + P(19,22));
-				Kfusion[23] = HK50*(HK21*P(16,23) + HK27*P(17,23) - HK28*P(18,23) + HK29*P(1,23) + HK30*P(0,23) - HK32*P(2,23) + HK34*P(3,23) + P(19,23));
+				Kfusion(0) = HK36*HK50;
+				Kfusion(1) = HK48*HK50;
+				Kfusion(2) = HK41*HK50;
+				Kfusion(3) = HK45*HK50;
+				Kfusion(4) = HK50*(HK21*P(4,16) + HK27*P(4,17) - HK28*P(4,18) + HK29*P(1,4) + HK30*P(0,4) - HK32*P(2,4) + HK34*P(3,4) + P(4,19));
+				Kfusion(5) = HK50*(HK21*P(5,16) + HK27*P(5,17) - HK28*P(5,18) + HK29*P(1,5) + HK30*P(0,5) - HK32*P(2,5) + HK34*P(3,5) + P(5,19));
+				Kfusion(6) = HK50*(HK21*P(6,16) + HK27*P(6,17) - HK28*P(6,18) + HK29*P(1,6) + HK30*P(0,6) - HK32*P(2,6) + HK34*P(3,6) + P(6,19));
+				Kfusion(7) = HK50*(HK21*P(7,16) + HK27*P(7,17) - HK28*P(7,18) + HK29*P(1,7) + HK30*P(0,7) - HK32*P(2,7) + HK34*P(3,7) + P(7,19));
+				Kfusion(8) = HK50*(HK21*P(8,16) + HK27*P(8,17) - HK28*P(8,18) + HK29*P(1,8) + HK30*P(0,8) - HK32*P(2,8) + HK34*P(3,8) + P(8,19));
+				Kfusion(9) = HK50*(HK21*P(9,16) + HK27*P(9,17) - HK28*P(9,18) + HK29*P(1,9) + HK30*P(0,9) - HK32*P(2,9) + HK34*P(3,9) + P(9,19));
+				Kfusion(10) = HK50*(HK21*P(10,16) + HK27*P(10,17) - HK28*P(10,18) + HK29*P(1,10) + HK30*P(0,10) - HK32*P(2,10) + HK34*P(3,10) + P(10,19));
+				Kfusion(11) = HK50*(HK21*P(11,16) + HK27*P(11,17) - HK28*P(11,18) + HK29*P(1,11) + HK30*P(0,11) - HK32*P(2,11) + HK34*P(3,11) + P(11,19));
+				Kfusion(12) = HK50*(HK21*P(12,16) + HK27*P(12,17) - HK28*P(12,18) + HK29*P(1,12) + HK30*P(0,12) - HK32*P(2,12) + HK34*P(3,12) + P(12,19));
+				Kfusion(13) = HK50*(HK21*P(13,16) + HK27*P(13,17) - HK28*P(13,18) + HK29*P(1,13) + HK30*P(0,13) - HK32*P(2,13) + HK34*P(3,13) + P(13,19));
+				Kfusion(14) = HK50*(HK21*P(14,16) + HK27*P(14,17) - HK28*P(14,18) + HK29*P(1,14) + HK30*P(0,14) - HK32*P(2,14) + HK34*P(3,14) + P(14,19));
+				Kfusion(15) = HK50*(HK21*P(15,16) + HK27*P(15,17) - HK28*P(15,18) + HK29*P(1,15) + HK30*P(0,15) - HK32*P(2,15) + HK34*P(3,15) + P(15,19));
+				Kfusion(22) = HK50*(HK21*P(16,22) + HK27*P(17,22) - HK28*P(18,22) + HK29*P(1,22) + HK30*P(0,22) - HK32*P(2,22) + HK34*P(3,22) + P(19,22));
+				Kfusion(23) = HK50*(HK21*P(16,23) + HK27*P(17,23) - HK28*P(18,23) + HK29*P(1,23) + HK30*P(0,23) - HK32*P(2,23) + HK34*P(3,23) + P(19,23));
 
 			} else {
 				for (uint8_t i = 0; i < 16; i++) {
-					Kfusion[i] = 0.0f;
+					Kfusion(i) = 0.0f;
 				}
 
-				Kfusion[22] = 0.0f;
-				Kfusion[23] = 0.0f;
+				Kfusion(22) = 0.0f;
+				Kfusion(23) = 0.0f;
 			}
 
-			Kfusion[16] = HK37*HK50;
-			Kfusion[17] = HK42*HK50;
-			Kfusion[18] = HK38*HK50;
-			Kfusion[19] = HK49*HK50;
-			Kfusion[20] = HK50*(HK21*P(16,20) + HK27*P(17,20) - HK28*P(18,20) + HK29*P(1,20) + HK30*P(0,20) - HK32*P(2,20) + HK34*P(3,20) + P(19,20));
-			Kfusion[21] = HK50*(HK21*P(16,21) + HK27*P(17,21) - HK28*P(18,21) + HK29*P(1,21) + HK30*P(0,21) - HK32*P(2,21) + HK34*P(3,21) + P(19,21));
+			Kfusion(16) = HK37*HK50;
+			Kfusion(17) = HK42*HK50;
+			Kfusion(18) = HK38*HK50;
+			Kfusion(19) = HK49*HK50;
+			Kfusion(20) = HK50*(HK21*P(16,20) + HK27*P(17,20) - HK28*P(18,20) + HK29*P(1,20) + HK30*P(0,20) - HK32*P(2,20) + HK34*P(3,20) + P(19,20));
+			Kfusion(21) = HK50*(HK21*P(16,21) + HK27*P(17,21) - HK28*P(18,21) + HK29*P(1,21) + HK30*P(0,21) - HK32*P(2,21) + HK34*P(3,21) + P(19,21));
 
 		} else if (index == 1) {
 			// Calculate Y axis observation jacobians
@@ -318,41 +318,40 @@ void Ekf::fuseMag()
 
 			// Calculate Y axis Kalman gains
 			if (update_all_states) {
-				Kfusion[0] = HK60*HK71;
-				Kfusion[1] = HK67*HK71;
-				Kfusion[2] = HK69*HK71;
-				Kfusion[3] = HK64*HK71;
-				Kfusion[4] = HK71*(HK29*P(2,4) - HK30*P(3,4) + HK32*P(1,4) + HK34*P(0,4) + HK53*P(4,17) + HK57*P(4,18) - HK58*P(4,16) + P(4,20));
-				Kfusion[5] = HK71*(HK29*P(2,5) - HK30*P(3,5) + HK32*P(1,5) + HK34*P(0,5) + HK53*P(5,17) + HK57*P(5,18) - HK58*P(5,16) + P(5,20));
-				Kfusion[6] = HK71*(HK29*P(2,6) - HK30*P(3,6) + HK32*P(1,6) + HK34*P(0,6) + HK53*P(6,17) + HK57*P(6,18) - HK58*P(6,16) + P(6,20));
-				Kfusion[7] = HK71*(HK29*P(2,7) - HK30*P(3,7) + HK32*P(1,7) + HK34*P(0,7) + HK53*P(7,17) + HK57*P(7,18) - HK58*P(7,16) + P(7,20));
-				Kfusion[8] = HK71*(HK29*P(2,8) - HK30*P(3,8) + HK32*P(1,8) + HK34*P(0,8) + HK53*P(8,17) + HK57*P(8,18) - HK58*P(8,16) + P(8,20));
-				Kfusion[9] = HK71*(HK29*P(2,9) - HK30*P(3,9) + HK32*P(1,9) + HK34*P(0,9) + HK53*P(9,17) + HK57*P(9,18) - HK58*P(9,16) + P(9,20));
-				Kfusion[10] = HK71*(HK29*P(2,10) - HK30*P(3,10) + HK32*P(1,10) + HK34*P(0,10) + HK53*P(10,17) + HK57*P(10,18) - HK58*P(10,16) + P(10,20));
-				Kfusion[11] = HK71*(HK29*P(2,11) - HK30*P(3,11) + HK32*P(1,11) + HK34*P(0,11) + HK53*P(11,17) + HK57*P(11,18) - HK58*P(11,16) + P(11,20));
-				Kfusion[12] = HK71*(HK29*P(2,12) - HK30*P(3,12) + HK32*P(1,12) + HK34*P(0,12) + HK53*P(12,17) + HK57*P(12,18) - HK58*P(12,16) + P(12,20));
-				Kfusion[13] = HK71*(HK29*P(2,13) - HK30*P(3,13) + HK32*P(1,13) + HK34*P(0,13) + HK53*P(13,17) + HK57*P(13,18) - HK58*P(13,16) + P(13,20));
-				Kfusion[14] = HK71*(HK29*P(2,14) - HK30*P(3,14) + HK32*P(1,14) + HK34*P(0,14) + HK53*P(14,17) + HK57*P(14,18) - HK58*P(14,16) + P(14,20));
-				Kfusion[15] = HK71*(HK29*P(2,15) - HK30*P(3,15) + HK32*P(1,15) + HK34*P(0,15) + HK53*P(15,17) + HK57*P(15,18) - HK58*P(15,16) + P(15,20));
-				Kfusion[22] = HK71*(HK29*P(2,22) - HK30*P(3,22) + HK32*P(1,22) + HK34*P(0,22) + HK53*P(17,22) + HK57*P(18,22) - HK58*P(16,22) + P(20,22));
-				Kfusion[23] = HK71*(HK29*P(2,23) - HK30*P(3,23) + HK32*P(1,23) + HK34*P(0,23) + HK53*P(17,23) + HK57*P(18,23) - HK58*P(16,23) + P(20,23));
+				Kfusion(0) = HK60*HK71;
+				Kfusion(1) = HK67*HK71;
+				Kfusion(2) = HK69*HK71;
+				Kfusion(3) = HK64*HK71;
+				Kfusion(4) = HK71*(HK29*P(2,4) - HK30*P(3,4) + HK32*P(1,4) + HK34*P(0,4) + HK53*P(4,17) + HK57*P(4,18) - HK58*P(4,16) + P(4,20));
+				Kfusion(5) = HK71*(HK29*P(2,5) - HK30*P(3,5) + HK32*P(1,5) + HK34*P(0,5) + HK53*P(5,17) + HK57*P(5,18) - HK58*P(5,16) + P(5,20));
+				Kfusion(6) = HK71*(HK29*P(2,6) - HK30*P(3,6) + HK32*P(1,6) + HK34*P(0,6) + HK53*P(6,17) + HK57*P(6,18) - HK58*P(6,16) + P(6,20));
+				Kfusion(7) = HK71*(HK29*P(2,7) - HK30*P(3,7) + HK32*P(1,7) + HK34*P(0,7) + HK53*P(7,17) + HK57*P(7,18) - HK58*P(7,16) + P(7,20));
+				Kfusion(8) = HK71*(HK29*P(2,8) - HK30*P(3,8) + HK32*P(1,8) + HK34*P(0,8) + HK53*P(8,17) + HK57*P(8,18) - HK58*P(8,16) + P(8,20));
+				Kfusion(9) = HK71*(HK29*P(2,9) - HK30*P(3,9) + HK32*P(1,9) + HK34*P(0,9) + HK53*P(9,17) + HK57*P(9,18) - HK58*P(9,16) + P(9,20));
+				Kfusion(10) = HK71*(HK29*P(2,10) - HK30*P(3,10) + HK32*P(1,10) + HK34*P(0,10) + HK53*P(10,17) + HK57*P(10,18) - HK58*P(10,16) + P(10,20));
+				Kfusion(11) = HK71*(HK29*P(2,11) - HK30*P(3,11) + HK32*P(1,11) + HK34*P(0,11) + HK53*P(11,17) + HK57*P(11,18) - HK58*P(11,16) + P(11,20));
+				Kfusion(12) = HK71*(HK29*P(2,12) - HK30*P(3,12) + HK32*P(1,12) + HK34*P(0,12) + HK53*P(12,17) + HK57*P(12,18) - HK58*P(12,16) + P(12,20));
+				Kfusion(13) = HK71*(HK29*P(2,13) - HK30*P(3,13) + HK32*P(1,13) + HK34*P(0,13) + HK53*P(13,17) + HK57*P(13,18) - HK58*P(13,16) + P(13,20));
+				Kfusion(14) = HK71*(HK29*P(2,14) - HK30*P(3,14) + HK32*P(1,14) + HK34*P(0,14) + HK53*P(14,17) + HK57*P(14,18) - HK58*P(14,16) + P(14,20));
+				Kfusion(15) = HK71*(HK29*P(2,15) - HK30*P(3,15) + HK32*P(1,15) + HK34*P(0,15) + HK53*P(15,17) + HK57*P(15,18) - HK58*P(15,16) + P(15,20));
+				Kfusion(22) = HK71*(HK29*P(2,22) - HK30*P(3,22) + HK32*P(1,22) + HK34*P(0,22) + HK53*P(17,22) + HK57*P(18,22) - HK58*P(16,22) + P(20,22));
+				Kfusion(23) = HK71*(HK29*P(2,23) - HK30*P(3,23) + HK32*P(1,23) + HK34*P(0,23) + HK53*P(17,23) + HK57*P(18,23) - HK58*P(16,23) + P(20,23));
 
 			} else {
 				for (uint8_t i = 0; i < 16; i++) {
-					Kfusion[i] = 0.0f;
+					Kfusion(i) = 0.0f;
 				}
 
-				Kfusion[22] = 0.0f;
-				Kfusion[23] = 0.0f;
+				Kfusion(22) = 0.0f;
+				Kfusion(23) = 0.0f;
 			}
 
-			Kfusion[16] = HK62*HK71;
-			Kfusion[17] = HK61*HK71;
-			Kfusion[18] = HK65*HK71;
-			Kfusion[19] = HK71*(HK29*P(2,19) - HK30*P(3,19) + HK32*P(1,19) + HK34*P(0,19) + HK53*P(17,19) + HK57*P(18,19) - HK58*P(16,19) + P(19,20));
-			Kfusion[20] = HK70*HK71;
-			Kfusion[21] = HK71*(HK29*P(2,21) - HK30*P(3,21) + HK32*P(1,21) + HK34*P(0,21) + HK53*P(17,21) + HK57*P(18,21) - HK58*P(16,21) + P(20,21));
-
+			Kfusion(16) = HK62*HK71;
+			Kfusion(17) = HK61*HK71;
+			Kfusion(18) = HK65*HK71;
+			Kfusion(19) = HK71*(HK29*P(2,19) - HK30*P(3,19) + HK32*P(1,19) + HK34*P(0,19) + HK53*P(17,19) + HK57*P(18,19) - HK58*P(16,19) + P(19,20));
+			Kfusion(20) = HK70*HK71;
+			Kfusion(21) = HK71*(HK29*P(2,21) - HK30*P(3,21) + HK32*P(1,21) + HK34*P(0,21) + HK53*P(17,21) + HK57*P(18,21) - HK58*P(16,21) + P(20,21));
 		} else if (index == 2) {
 
 			// we do not fuse synthesized magnetomter measurements when doing 3D fusion
@@ -373,40 +372,40 @@ void Ekf::fuseMag()
 
 			// Calculate Z axis Kalman gains
 			if (update_all_states) {
-				Kfusion[0] = HK76*HK84;
-				Kfusion[1] = HK79*HK84;
-				Kfusion[2] = HK82*HK84;
-				Kfusion[3] = HK81*HK84;
-				Kfusion[4] = HK84*(HK29*P(3,4) + HK30*P(2,4) + HK32*P(0,4) - HK34*P(1,4) + HK73*P(4,18) + HK74*P(4,16) - HK75*P(4,17) + P(4,21));
-				Kfusion[5] = HK84*(HK29*P(3,5) + HK30*P(2,5) + HK32*P(0,5) - HK34*P(1,5) + HK73*P(5,18) + HK74*P(5,16) - HK75*P(5,17) + P(5,21));
-				Kfusion[6] = HK84*(HK29*P(3,6) + HK30*P(2,6) + HK32*P(0,6) - HK34*P(1,6) + HK73*P(6,18) + HK74*P(6,16) - HK75*P(6,17) + P(6,21));
-				Kfusion[7] = HK84*(HK29*P(3,7) + HK30*P(2,7) + HK32*P(0,7) - HK34*P(1,7) + HK73*P(7,18) + HK74*P(7,16) - HK75*P(7,17) + P(7,21));
-				Kfusion[8] = HK84*(HK29*P(3,8) + HK30*P(2,8) + HK32*P(0,8) - HK34*P(1,8) + HK73*P(8,18) + HK74*P(8,16) - HK75*P(8,17) + P(8,21));
-				Kfusion[9] = HK84*(HK29*P(3,9) + HK30*P(2,9) + HK32*P(0,9) - HK34*P(1,9) + HK73*P(9,18) + HK74*P(9,16) - HK75*P(9,17) + P(9,21));
-				Kfusion[10] = HK84*(HK29*P(3,10) + HK30*P(2,10) + HK32*P(0,10) - HK34*P(1,10) + HK73*P(10,18) + HK74*P(10,16) - HK75*P(10,17) + P(10,21));
-				Kfusion[11] = HK84*(HK29*P(3,11) + HK30*P(2,11) + HK32*P(0,11) - HK34*P(1,11) + HK73*P(11,18) + HK74*P(11,16) - HK75*P(11,17) + P(11,21));
-				Kfusion[12] = HK84*(HK29*P(3,12) + HK30*P(2,12) + HK32*P(0,12) - HK34*P(1,12) + HK73*P(12,18) + HK74*P(12,16) - HK75*P(12,17) + P(12,21));
-				Kfusion[13] = HK84*(HK29*P(3,13) + HK30*P(2,13) + HK32*P(0,13) - HK34*P(1,13) + HK73*P(13,18) + HK74*P(13,16) - HK75*P(13,17) + P(13,21));
-				Kfusion[14] = HK84*(HK29*P(3,14) + HK30*P(2,14) + HK32*P(0,14) - HK34*P(1,14) + HK73*P(14,18) + HK74*P(14,16) - HK75*P(14,17) + P(14,21));
-				Kfusion[15] = HK84*(HK29*P(3,15) + HK30*P(2,15) + HK32*P(0,15) - HK34*P(1,15) + HK73*P(15,18) + HK74*P(15,16) - HK75*P(15,17) + P(15,21));
-				Kfusion[22] = HK84*(HK29*P(3,22) + HK30*P(2,22) + HK32*P(0,22) - HK34*P(1,22) + HK73*P(18,22) + HK74*P(16,22) - HK75*P(17,22) + P(21,22));
-				Kfusion[23] = HK84*(HK29*P(3,23) + HK30*P(2,23) + HK32*P(0,23) - HK34*P(1,23) + HK73*P(18,23) + HK74*P(16,23) - HK75*P(17,23) + P(21,23));
+				Kfusion(0) = HK76*HK84;
+				Kfusion(1) = HK79*HK84;
+				Kfusion(2) = HK82*HK84;
+				Kfusion(3) = HK81*HK84;
+				Kfusion(4) = HK84*(HK29*P(3,4) + HK30*P(2,4) + HK32*P(0,4) - HK34*P(1,4) + HK73*P(4,18) + HK74*P(4,16) - HK75*P(4,17) + P(4,21));
+				Kfusion(5) = HK84*(HK29*P(3,5) + HK30*P(2,5) + HK32*P(0,5) - HK34*P(1,5) + HK73*P(5,18) + HK74*P(5,16) - HK75*P(5,17) + P(5,21));
+				Kfusion(6) = HK84*(HK29*P(3,6) + HK30*P(2,6) + HK32*P(0,6) - HK34*P(1,6) + HK73*P(6,18) + HK74*P(6,16) - HK75*P(6,17) + P(6,21));
+				Kfusion(7) = HK84*(HK29*P(3,7) + HK30*P(2,7) + HK32*P(0,7) - HK34*P(1,7) + HK73*P(7,18) + HK74*P(7,16) - HK75*P(7,17) + P(7,21));
+				Kfusion(8) = HK84*(HK29*P(3,8) + HK30*P(2,8) + HK32*P(0,8) - HK34*P(1,8) + HK73*P(8,18) + HK74*P(8,16) - HK75*P(8,17) + P(8,21));
+				Kfusion(9) = HK84*(HK29*P(3,9) + HK30*P(2,9) + HK32*P(0,9) - HK34*P(1,9) + HK73*P(9,18) + HK74*P(9,16) - HK75*P(9,17) + P(9,21));
+				Kfusion(10) = HK84*(HK29*P(3,10) + HK30*P(2,10) + HK32*P(0,10) - HK34*P(1,10) + HK73*P(10,18) + HK74*P(10,16) - HK75*P(10,17) + P(10,21));
+				Kfusion(11) = HK84*(HK29*P(3,11) + HK30*P(2,11) + HK32*P(0,11) - HK34*P(1,11) + HK73*P(11,18) + HK74*P(11,16) - HK75*P(11,17) + P(11,21));
+				Kfusion(12) = HK84*(HK29*P(3,12) + HK30*P(2,12) + HK32*P(0,12) - HK34*P(1,12) + HK73*P(12,18) + HK74*P(12,16) - HK75*P(12,17) + P(12,21));
+				Kfusion(13) = HK84*(HK29*P(3,13) + HK30*P(2,13) + HK32*P(0,13) - HK34*P(1,13) + HK73*P(13,18) + HK74*P(13,16) - HK75*P(13,17) + P(13,21));
+				Kfusion(14) = HK84*(HK29*P(3,14) + HK30*P(2,14) + HK32*P(0,14) - HK34*P(1,14) + HK73*P(14,18) + HK74*P(14,16) - HK75*P(14,17) + P(14,21));
+				Kfusion(15) = HK84*(HK29*P(3,15) + HK30*P(2,15) + HK32*P(0,15) - HK34*P(1,15) + HK73*P(15,18) + HK74*P(15,16) - HK75*P(15,17) + P(15,21));
+				Kfusion(22) = HK84*(HK29*P(3,22) + HK30*P(2,22) + HK32*P(0,22) - HK34*P(1,22) + HK73*P(18,22) + HK74*P(16,22) - HK75*P(17,22) + P(21,22));
+				Kfusion(23) = HK84*(HK29*P(3,23) + HK30*P(2,23) + HK32*P(0,23) - HK34*P(1,23) + HK73*P(18,23) + HK74*P(16,23) - HK75*P(17,23) + P(21,23));
 
 			} else {
 				for (uint8_t i = 0; i < 16; i++) {
-					Kfusion[i] = 0.0f;
+					Kfusion(i) = 0.0f;
 				}
 
-				Kfusion[22] = 0.0f;
-				Kfusion[23] = 0.0f;
+				Kfusion(22) = 0.0f;
+				Kfusion(23) = 0.0f;
 			}
 
-			Kfusion[16] = HK80*HK84;
-			Kfusion[17] = HK78*HK84;
-			Kfusion[18] = HK77*HK84;
-			Kfusion[19] = HK84*(HK29*P(3,19) + HK30*P(2,19) + HK32*P(0,19) - HK34*P(1,19) + HK73*P(18,19) + HK74*P(16,19) - HK75*P(17,19) + P(19,21));
-			Kfusion[20] = HK84*(HK29*P(3,20) + HK30*P(2,20) + HK32*P(0,20) - HK34*P(1,20) + HK73*P(18,20) + HK74*P(16,20) - HK75*P(17,20) + P(20,21));
-			Kfusion[21] = HK83*HK84;
+			Kfusion(16) = HK80*HK84;
+			Kfusion(17) = HK78*HK84;
+			Kfusion(18) = HK77*HK84;
+			Kfusion(19) = HK84*(HK29*P(3,19) + HK30*P(2,19) + HK32*P(0,19) - HK34*P(1,19) + HK73*P(18,19) + HK74*P(16,19) - HK75*P(17,19) + P(19,21));
+			Kfusion(20) = HK84*(HK29*P(3,20) + HK30*P(2,20) + HK32*P(0,20) - HK34*P(1,20) + HK73*P(18,20) + HK74*P(16,20) - HK75*P(17,20) + P(20,21));
+			Kfusion(21) = HK83*HK84;
 
 		}
 
@@ -418,16 +417,16 @@ void Ekf::fuseMag()
 
 		for (unsigned row = 0; row < _k_num_states; row++) {
 
-			KH[0] = Kfusion[row] * Hfusion[0];
-			KH[1] = Kfusion[row] * Hfusion[1];
-			KH[2] = Kfusion[row] * Hfusion[2];
-			KH[3] = Kfusion[row] * Hfusion[3];
-			KH[4] = Kfusion[row] * Hfusion[16];
-			KH[5] = Kfusion[row] * Hfusion[17];
-			KH[6] = Kfusion[row] * Hfusion[18];
-			KH[7] = Kfusion[row] * Hfusion[19];
-			KH[8] = Kfusion[row] * Hfusion[20];
-			KH[9] = Kfusion[row] * Hfusion[21];
+			KH[0] = Kfusion(row) * Hfusion[0];
+			KH[1] = Kfusion(row) * Hfusion[1];
+			KH[2] = Kfusion(row) * Hfusion[2];
+			KH[3] = Kfusion(row) * Hfusion[3];
+			KH[4] = Kfusion(row) * Hfusion[16];
+			KH[5] = Kfusion(row) * Hfusion[17];
+			KH[6] = Kfusion(row) * Hfusion[18];
+			KH[7] = Kfusion(row) * Hfusion[19];
+			KH[8] = Kfusion(row) * Hfusion[20];
+			KH[9] = Kfusion(row) * Hfusion[21];
 
 			for (unsigned column = 0; column < _k_num_states; column++) {
 				float tmp = KH[0] * P(0,column);
