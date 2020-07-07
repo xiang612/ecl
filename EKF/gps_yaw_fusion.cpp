@@ -49,10 +49,10 @@
 void Ekf::fuseGpsYaw()
 {
 	// assign intermediate state variables
-	const float q0 = _state.quat_nominal(0);
-	const float q1 = _state.quat_nominal(1);
-	const float q2 = _state.quat_nominal(2);
-	const float q3 = _state.quat_nominal(3);
+	const float &q0 = _state.quat_nominal(0);
+	const float &q1 = _state.quat_nominal(1);
+	const float &q2 = _state.quat_nominal(2);
+	const float &q3 = _state.quat_nominal(3);
 
 	// calculate the observed yaw angle of antenna array, converting a from body to antenna yaw measurement
 	const float measured_hdg = wrap_pi(_gps_sample_delayed.yaw + _gps_yaw_offset);
@@ -69,91 +69,51 @@ void Ekf::fuseGpsYaw()
 	// calculate predicted antenna yaw angle
 	const float predicted_hdg =  atan2f(ant_vec_ef(1),ant_vec_ef(0));
 
-	// calculate observation jacobian
-	float t2 = sinf(_gps_yaw_offset);
-	float t3 = cosf(_gps_yaw_offset);
-	float t4 = q0*q3*2.0f;
-	float t5 = q0*q0;
-	float t6 = q1*q1;
-	float t7 = q2*q2;
-	float t8 = q3*q3;
-	float t9 = q1*q2*2.0f;
-	float t10 = t5+t6-t7-t8;
-	float t11 = t3*t10;
-	float t12 = t4+t9;
-	float t13 = t3*t12;
-	float t14 = t5-t6+t7-t8;
-	float t15 = t2*t14;
-	float t16 = t13+t15;
-	float t17 = t4-t9;
-	float t19 = t2*t17;
-	float t20 = t11-t19;
-	float t18 = (t20*t20);
-	if (t18 < 1e-6f) {
-		return;
-	}
-	t18 = 1.0f / t18;
-	float t21 = t16*t16;
-	float t22 = sq(t11-t19);
-	if (t22 < 1e-6f) {
-		return;
-	}
-	t22 = 1.0f/t22;
-	float t23 = q1*t3*2.0f;
-	float t24 = q2*t2*2.0f;
-	float t25 = t23+t24;
-	float t26 = 1.0f/t20;
-	float t27 = q1*t2*2.0f;
-	float t28 = t21*t22;
-	float t29 = t28+1.0f;
-	if (fabsf(t29) < 1e-6f) {
-		return;
-	}
-	float t30 = 1.0f/t29;
-	float t31 = q0*t3*2.0f;
-	float t32 = t31-q3*t2*2.0f;
-	float t33 = q3*t3*2.0f;
-	float t34 = q0*t2*2.0f;
-	float t35 = t33+t34;
-
-	float H_YAW[4];
-	H_YAW[0] = (t35/(t11-t2*(t4-q1*q2*2.0f))-t16*t18*t32)/(t18*t21+1.0f);
-	H_YAW[1] = -t30*(t26*(t27-q2*t3*2.0f)+t16*t22*t25);
-	H_YAW[2] = t30*(t25*t26-t16*t22*(t27-q2*t3*2.0f));
-	H_YAW[3] = t30*(t26*t32+t16*t22*t35);
-
-	// using magnetic heading tuning parameter
+	// using magnetic heading process noise
+	// TODO extend interface to use yaw uncertainty provided by GPS if available
 	const float R_YAW = sq(fmaxf(_params.mag_heading_noise, 1.0e-2f));
 
-	// calculate the innovation and define the innovation gate
-	const float innov_gate = math::max(_params.heading_innov_gate, 1.0f);
-	_heading_innov = predicted_hdg - measured_hdg;
-
-	// wrap the innovation to the interval between +-pi
-	_heading_innov = wrap_pi(_heading_innov);
-
-	// Calculate innovation variance and Kalman gains, taking advantage of the fact that only the first 3 elements in H are non zero
-	// calculate the innovation variance
-	float PH[4];
-	_heading_innov_var = R_YAW;
-
-	for (unsigned row = 0; row <= 3; row++) {
-		PH[row] = 0.0f;
-
-		for (uint8_t col = 0; col <= 3; col++) {
-			PH[row] += P(row,col) * H_YAW[col];
-		}
-
-		_heading_innov_var += H_YAW[row] * PH[row];
-	}
-
-	float heading_innov_var_inv;
+	// calculate intermediate variables
+	const float HK0 = sinf(_gps_yaw_offset);
+	const float HK1 = q0*q3;
+	const float HK2 = q1*q2;
+	const float HK3 = 2*HK0*(HK1 - HK2);
+	const float HK4 = cosf(_gps_yaw_offset);
+	const float HK5 = powf(q1, 2);
+	const float HK6 = powf(q2, 2);
+	const float HK7 = powf(q0, 2) - powf(q3, 2);
+	const float HK8 = HK4*(HK5 - HK6 + HK7);
+	const float HK9 = HK3 - HK8;
+	const float HK10 = 1.0F/HK9;
+	const float HK11 = HK4*q0;
+	const float HK12 = HK0*q3;
+	const float HK13 = HK0*(-HK5 + HK6 + HK7) + 2*HK4*(HK1 + HK2);
+	const float HK14 = HK10*HK13;
+	const float HK15 = HK0*q0 + HK4*q3;
+	const float HK16 = HK10*(HK14*(HK11 - HK12) + HK15);
+	const float HK17 = powf(HK13, 2)/powf(HK9, 2) + 1;
+	const float HK18 = 2/HK17;
+	const float HK19 = 1.0F/(-HK3 + HK8);
+	const float HK20 = HK4*q1;
+	const float HK21 = HK0*q2;
+	const float HK22 = HK13*HK19;
+	const float HK23 = HK0*q1 - HK4*q2;
+	const float HK24 = HK19*(HK22*(HK20 + HK21) + HK23);
+	const float HK25 = HK19*(-HK20 - HK21 + HK22*HK23);
+	const float HK26 = HK10*(-HK11 + HK12 + HK14*HK15);
+	const float HK27 = -HK16*P(0,0) - HK24*P(0,1) - HK25*P(0,2) + HK26*P(0,3);
+	const float HK28 = -HK16*P(0,1) - HK24*P(1,1) - HK25*P(1,2) + HK26*P(1,3);
+	const float HK29 = 4/powf(HK17, 2);
+	const float HK30 = -HK16*P(0,2) - HK24*P(1,2) - HK25*P(2,2) + HK26*P(2,3);
+	const float HK31 = -HK16*P(0,3) - HK24*P(1,3) - HK25*P(2,3) + HK26*P(3,3);
+	float HK32;
 
 	// check if the innovation variance calculation is badly conditioned
+	_heading_innov_var = (-HK16*HK27*HK29 - HK24*HK28*HK29 - HK25*HK29*HK30 + HK26*HK29*HK31 + R_YAW);
 	if (_heading_innov_var >= R_YAW) {
 		// the innovation variance contribution from the state covariances is not negative, no fault
 		_fault_status.flags.bad_hdg = false;
-		heading_innov_var_inv = 1.0f / _heading_innov_var;
+		HK32 = HK18/_heading_innov_var;
 
 	} else {
 		// the innovation variance contribution from the state covariances is negative which means the covariance matrix is badly conditioned
@@ -165,27 +125,12 @@ void Ekf::fuseGpsYaw()
 		return;
 	}
 
-	// calculate the Kalman gains
-	// only calculate gains for states we are using
-	Vector24f Kfusion;
+	// calculate the innovation and define the innovation gate
+	const float innov_gate = math::max(_params.heading_innov_gate, 1.0f);
+	_heading_innov = predicted_hdg - measured_hdg;
 
-	for (uint8_t row = 0; row <= 15; row++) {
-		for (uint8_t col = 0; col <= 3; col++) {
-			Kfusion(row) += P(row,col) * H_YAW[col];
-		}
-
-		Kfusion(row) *= heading_innov_var_inv;
-	}
-
-	if (_control_status.flags.wind) {
-		for (uint8_t row = 22; row <= 23; row++) {
-			for (uint8_t col = 0; col <= 3; col++) {
-				Kfusion(row) += P(row,col) * H_YAW[col];
-			}
-
-			Kfusion(row) *= heading_innov_var_inv;
-		}
-	}
+	// wrap the innovation to the interval between +-pi
+	_heading_innov = wrap_pi(_heading_innov);
 
 	// innovation test ratio
 	_yaw_test_ratio = sq(_heading_innov) / (sq(innov_gate) * _heading_innov_var);
@@ -212,6 +157,41 @@ void Ekf::fuseGpsYaw()
 		_innov_check_fail_status.flags.reject_yaw = false;
 	}
 
+	// calculate observation jacobian
+	float Hfusion[4];
+	Hfusion[0] = -HK16*HK18;
+	Hfusion[1] = -HK18*HK24;
+	Hfusion[2] = -HK18*HK25;
+	Hfusion[3] = HK18*HK26;
+
+	// calculate the Kalman gains
+	// only calculate gains for states we are using
+	Vector24f Kfusion;
+	Kfusion(0) = HK27*HK32;
+	Kfusion(1) = HK28*HK32;
+	Kfusion(2) = HK30*HK32;
+	Kfusion(3) = HK31*HK32;
+	Kfusion(4) = HK32*(-HK16*P(0,4) - HK24*P(1,4) - HK25*P(2,4) + HK26*P(3,4));
+	Kfusion(5) = HK32*(-HK16*P(0,5) - HK24*P(1,5) - HK25*P(2,5) + HK26*P(3,5));
+	Kfusion(6) = HK32*(-HK16*P(0,6) - HK24*P(1,6) - HK25*P(2,6) + HK26*P(3,6));
+	Kfusion(7) = HK32*(-HK16*P(0,7) - HK24*P(1,7) - HK25*P(2,7) + HK26*P(3,7));
+	Kfusion(8) = HK32*(-HK16*P(0,8) - HK24*P(1,8) - HK25*P(2,8) + HK26*P(3,8));
+	Kfusion(9) = HK32*(-HK16*P(0,9) - HK24*P(1,9) - HK25*P(2,9) + HK26*P(3,9));
+	Kfusion(10) = HK32*(-HK16*P(0,10) - HK24*P(1,10) - HK25*P(2,10) + HK26*P(3,10));
+	Kfusion(11) = HK32*(-HK16*P(0,11) - HK24*P(1,11) - HK25*P(2,11) + HK26*P(3,11));
+	Kfusion(12) = HK32*(-HK16*P(0,12) - HK24*P(1,12) - HK25*P(2,12) + HK26*P(3,12));
+	Kfusion(13) = HK32*(-HK16*P(0,13) - HK24*P(1,13) - HK25*P(2,13) + HK26*P(3,13));
+	Kfusion(14) = HK32*(-HK16*P(0,14) - HK24*P(1,14) - HK25*P(2,14) + HK26*P(3,14));
+	Kfusion(15) = HK32*(-HK16*P(0,15) - HK24*P(1,15) - HK25*P(2,15) + HK26*P(3,15));
+	Kfusion(16) = HK32*(-HK16*P(0,16) - HK24*P(1,16) - HK25*P(2,16) + HK26*P(3,16));
+	Kfusion(17) = HK32*(-HK16*P(0,17) - HK24*P(1,17) - HK25*P(2,17) + HK26*P(3,17));
+	Kfusion(18) = HK32*(-HK16*P(0,18) - HK24*P(1,18) - HK25*P(2,18) + HK26*P(3,18));
+	Kfusion(19) = HK32*(-HK16*P(0,19) - HK24*P(1,19) - HK25*P(2,19) + HK26*P(3,19));
+	Kfusion(20) = HK32*(-HK16*P(0,20) - HK24*P(1,20) - HK25*P(2,20) + HK26*P(3,20));
+	Kfusion(21) = HK32*(-HK16*P(0,21) - HK24*P(1,21) - HK25*P(2,21) + HK26*P(3,21));
+	Kfusion(22) = HK32*(-HK16*P(0,22) - HK24*P(1,22) - HK25*P(2,22) + HK26*P(3,22));
+	Kfusion(23) = HK32*(-HK16*P(0,23) - HK24*P(1,23) - HK25*P(2,23) + HK26*P(3,23));
+
 	// apply covariance correction via P_new = (I -K*H)*P
 	// first calculate expression for KHP
 	// then calculate P - KHP
@@ -220,10 +200,10 @@ void Ekf::fuseGpsYaw()
 
 	for (unsigned row = 0; row < _k_num_states; row++) {
 
-		KH[0] = Kfusion(row) * H_YAW[0];
-		KH[1] = Kfusion(row) * H_YAW[1];
-		KH[2] = Kfusion(row) * H_YAW[2];
-		KH[3] = Kfusion(row) * H_YAW[3];
+		KH[0] = Kfusion(row) * Hfusion[0];
+		KH[1] = Kfusion(row) * Hfusion[1];
+		KH[2] = Kfusion(row) * Hfusion[2];
+		KH[3] = Kfusion(row) * Hfusion[3];
 
 		for (unsigned column = 0; column < _k_num_states; column++) {
 			float tmp = KH[0] * P(0,column);
