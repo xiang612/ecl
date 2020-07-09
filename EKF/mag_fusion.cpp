@@ -969,30 +969,9 @@ void Ekf::fuseDeclination(float decl_sigma)
 
 	// Calculate the Kalman gains
 	Vector24f Kfusion;
-	Kfusion(0) = -t4*t13*(P(0,16)*magE-P(0,17)*magN);
-	Kfusion(1) = -t4*t13*(P(1,16)*magE-P(1,17)*magN);
-	Kfusion(2) = -t4*t13*(P(2,16)*magE-P(2,17)*magN);
-	Kfusion(3) = -t4*t13*(P(3,16)*magE-P(3,17)*magN);
-	Kfusion(4) = -t4*t13*(P(4,16)*magE-P(4,17)*magN);
-	Kfusion(5) = -t4*t13*(P(5,16)*magE-P(5,17)*magN);
-	Kfusion(6) = -t4*t13*(P(6,16)*magE-P(6,17)*magN);
-	Kfusion(7) = -t4*t13*(P(7,16)*magE-P(7,17)*magN);
-	Kfusion(8) = -t4*t13*(P(8,16)*magE-P(8,17)*magN);
-	Kfusion(9) = -t4*t13*(P(9,16)*magE-P(9,17)*magN);
-	Kfusion(10) = -t4*t13*(P(10,16)*magE-P(10,17)*magN);
-	Kfusion(11) = -t4*t13*(P(11,16)*magE-P(11,17)*magN);
-	Kfusion(12) = -t4*t13*(P(12,16)*magE-P(12,17)*magN);
-	Kfusion(13) = -t4*t13*(P(13,16)*magE-P(13,17)*magN);
-	Kfusion(14) = -t4*t13*(P(14,16)*magE-P(14,17)*magN);
-	Kfusion(15) = -t4*t13*(P(15,16)*magE-P(15,17)*magN);
-	Kfusion(16) = -t4*t13*(P(16,16)*magE-P(16,17)*magN);
-	Kfusion(17) = -t4*t13*(P(17,16)*magE-P(17,17)*magN);
-	Kfusion(18) = -t4*t13*(P(18,16)*magE-P(18,17)*magN);
-	Kfusion(19) = -t4*t13*(P(19,16)*magE-P(19,17)*magN);
-	Kfusion(20) = -t4*t13*(P(20,16)*magE-P(20,17)*magN);
-	Kfusion(21) = -t4*t13*(P(21,16)*magE-P(21,17)*magN);
-	Kfusion(22) = -t4*t13*(P(22,16)*magE-P(22,17)*magN);
-	Kfusion(23) = -t4*t13*(P(23,16)*magE-P(23,17)*magN);
+	for (unsigned row = 0; row <= 23; row++) {
+		Kfusion(row) = -t4*t13*(P(row,16)*magE-P(row,17)*magN);
+	}
 
 	const float innovation = math::constrain(atan2f(magE, magN) - getMagDeclination(), -0.5f, 0.5f);
 
