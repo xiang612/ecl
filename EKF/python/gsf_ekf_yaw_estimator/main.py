@@ -102,7 +102,7 @@ innov_var_code_generator.close()
 # Calculate Kalman gain
 K = (P * H.T) / S
 
-K_simple = cse(K, symbols("S0:1000"), optimizations='basic')
+K_simple = cse(K, symbols("SK0:1000"), optimizations='basic')
 
 kalman_gain_code_generator = CodeGenerator("./Kalman_gain_generated.cpp")
 kalman_gain_code_generator.print_string("Equations for NE velocity Kalman gain")
@@ -113,7 +113,7 @@ kalman_gain_code_generator.close()
 # Calculate updated covariance matrix
 P_new = P - K*S*K.T
 
-P_new_simple = cse(P_new, symbols("S0:1000"), optimizations='basic')
+P_new_simple = cse(P_new, symbols("SP0:1000"), optimizations='basic')
 
 cov_update_code_generator = CodeGenerator("./covariance_update_generated.cpp")
 cov_update_code_generator.print_string("Equations for covariance matrix update")
